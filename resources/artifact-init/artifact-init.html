@@ -6,7 +6,7 @@
 
 {{block 'main'}}
 <div class="profile-cont game-gs">
-  <!-- 角色头部区 - 仿 miao-plugin profile-detail basic 区块 -->
+  <!-- ====== 角色头部区 ====== -->
   <div class="basic">
     {{if charSplash}}
     <div class="main-pic" style="background-image:url({{_miao_path}}{{charSplash}})"></div>
@@ -14,63 +14,140 @@
     <div class="detail">
       <div class="char-name">{{charName}}</div>
       <div class="char-lv">UID {{uid}} - Lv.{{charLevel}}</div>
-      <div class="char-eff-info">
-        有效词条：{{effectiveStats}}
-      </div>
     </div>
   </div>
 
-  <!-- 圣遗物列表 -->
-  <div class="artis artis-growth">
+  <!-- ====== 属性面板 (仿 miao-plugin profile-detail) ====== -->
+  <div class="char-attr-section">
+    <div class="section-title">角色属性</div>
+    <ul class="char-attr">
+      {{each charStats stat}}
+      <li class="{{stat.isEffective ? 'great' : ''}}">
+        <div class="icon"><i class="i-{{stat.key}}"></i></div>
+        <div class="title">{{stat.label}}</div>
+        {{if stat.showWeight && stat.weight > 0}}
+        <div class="weight"><span class="gold">{{stat.weight}}</span></div>
+        {{else}}
+        <div class="weight"></div>
+        {{/if}}
+        <div class="value">{{stat.total}}</div>
+        <div class="value2">
+          <span class="base {{stat.base === '0.0%' || stat.base === '0' ? 'zero' : ''}}">{{stat.base}}</span>
+          <span class="plus">{{stat.plus}}</span>
+        </div>
+      </li>
+      {{/each}}
+    </ul>
+    <div class="eff-notice">有效词条：{{effectiveStats}}</div>
+  </div>
+
+  <!-- ====== 天赋 & 武器 ====== -->
+  <div class="talent-weapon-row">
+    <!-- 天赋 -->
+    {{if talents}}
+    <div class="char-talents-section">
+      <div class="section-title">天赋</div>
+      <div class="char-talents">
+        {{each talentMap tName key}}
+        {{set tLevel = talents[key] || 0}}
+        <div class="talent-item">
+          <div class="talent-icon {{tLevel > 9 ? 'talent-crown' : ''}}">
+            {{if talentIcons[key]}}
+            <div class="talent-icon-img" style="background-image:url({{_miao_path}}{{talentIcons[key]}})"></div>
+            {{/if}}
+            <strong>{{tLevel}}</strong>
+          </div>
+          <div class="talent-label">{{tName}}</div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    <!-- 武器 -->
+    {{if weaponInfo}}
+    <div class="weapon-section">
+      <div class="section-title">武器</div>
+      <div class="weapon-card">
+        {{if weaponInfo.img}}
+        <div class="weapon-img" style="background-image:url({{_miao_path}}{{weaponInfo.img}})"></div>
+        {{/if}}
+        <div class="weapon-info">
+          <div class="weapon-name">
+            <strong>{{weaponInfo.name}}</strong>
+            <span>Lv.{{weaponInfo.level}} <span class="affix affix-{{weaponInfo.affix}}">精{{weaponInfo.affix}}</span></span>
+          </div>
+          <div class="weapon-stats">
+            <div class="wstat"><span>基础攻击力</span> {{weaponInfo.baseAtk}}</div>
+            {{if weaponInfo.bonusKey}}
+            <div class="wstat"><span>{{weaponInfo.bonusKeyName}}</span> {{weaponInfo.bonusVal}}%</div>
+            {{/if}}
+          </div>
+          {{if weaponInfo.desc}}
+          <div class="weapon-desc">{{@weaponInfo.desc}}</div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+    {{/if}}
+  </div>
+
+  <!-- ====== 圣遗物成长值 ====== -->
+  <div class="artis-growth-section">
+    <div class="section-title">圣遗物成长值</div>
     {{each artis arti}}
     {{if arti.empty}}
-    <!-- 空位 -->
-    <div class="item arti arti-empty">
-      <div class="arti-icon">
+    <div class="arti-row empty">
+      <div class="arti-row-icon">
         <div class="img" style="background-image:url({{_res_path}}common/item/artifact-icon.webp)"></div>
       </div>
-      <div class="head">
-        <strong>{{arti.posName}}</strong>
-        <span class="no-arti">暂无圣遗物</span>
+      <div class="arti-row-main">
+        <div class="arti-pos-label">{{arti.posName}}</div>
+        <div class="no-arti">暂无圣遗物</div>
       </div>
     </div>
     {{else}}
-    <!-- 正常圣遗物 -->
-    <div class="item arti">
-      <div class="arti-icon">
+    <div class="arti-row">
+      <!-- 圣遗物图标 -->
+      <div class="arti-row-icon">
         {{if arti.img}}
         <div class="img" style="background-image:url({{_miao_path}}{{arti.img}})"></div>
         {{else}}
         <div class="img" style="background-image:url({{_res_path}}common/item/artifact-icon.webp)"></div>
         {{/if}}
-        <span>+{{arti.level}}</span>
+        <span class="level">+{{arti.level}}</span>
       </div>
-      <div class="head">
-        <strong>{{arti.posName}} · {{arti.name}}</strong>
-        <span class="arti-main-stat">{{arti.mainKeyName}} +{{arti.mainValText}}</span>
-        <span class="arti-info-stat">
-          <span class="eff-count">有效 {{arti.effectiveCount}}</span>
-          <span class="upg-count">{{arti.upgradeCount}}词条</span>
-        </span>
+
+      <!-- 圣遗物名称 + 主词条 -->
+      <div class="arti-row-main">
+        <div class="arti-pos-label">{{arti.posName}} · {{arti.name}}</div>
+        <div class="arti-main-stat">{{arti.mainKeyName}} <span class="main-val">+{{arti.mainValText}}</span></div>
       </div>
-      <ul class="detail attr growth-detail">
+
+      <!-- 副词条成长列表 -->
+      <div class="arti-row-subs">
         {{each arti.subStats sub}}
-        <li>
-          <span class="title">{{sub.shortName}}</span>
-          <span class="val growth-formula">{{sub.formula}}</span>
+        <div class="sub-item">
+          <span class="sub-key">{{sub.shortName}}</span>
+          <span class="sub-formula">{{sub.formula}}</span>
           {{if sub.hitCount > 1}}
-          <span class="hit">({{sub.hitCount}}次)</span>
+          <span class="sub-hits">({{sub.hitCount}}次)</span>
           {{/if}}
-        </li>
+        </div>
         {{/each}}
-      </ul>
+      </div>
+
+      <!-- 有效词条统计 -->
+      <div class="arti-row-counts">
+        <div class="eff-badge">{{arti.effectiveCount}}<span>有效</span></div>
+        <div class="upg-count">{{arti.upgradeCount}}词条</div>
+      </div>
     </div>
     {{/if}}
     {{/each}}
   </div>
 
-  <!-- 底部说明 -->
-  <div class="artis-notice">
+  <div class="footer-notice">
     圣遗物成长值面板 · 有效词条参考 liangshi-calc · 数据来源 Enka/Mihomo API
   </div>
 </div>
