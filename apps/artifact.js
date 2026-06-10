@@ -278,6 +278,13 @@ function getTalentIcons (charName, talentIds, weaponType) {
       if (!icons[key]) icons[key] = ''
     }
   }
+  // 命座图标 (照搬 miao-plugin CharImg.getImgs)
+  for (let i = 1; i <= 6; i++) {
+    const consPath = path.join(iconsDir, `cons-${i}.webp`)
+    if (fs.existsSync(consPath)) {
+      icons[`cons${i}`] = `${charBase}/icons/cons-${i}.webp`
+    }
+  }
   return icons
 }
 
@@ -978,10 +985,14 @@ export class artifactInitPanel extends plugin {
       talentData[key] = { level, original: level }
     }
 
-    // imgs (天赋图标路径): miao-plugin 格式 {a: 'meta-gs/...', e: '...', q: '...'}
+    // imgs (天赋+命座图标路径): miao-plugin 格式 {a: 'meta-gs/...', e: '...', q: '...', cons1: '...', ...cons6}
     const imgs = {}
     for (const [key, tName] of Object.entries(result.talentMap)) {
       imgs[key] = result.talentIcons[key] || ''
+    }
+    // 命座图标
+    for (let i = 1; i <= 6; i++) {
+      imgs[`cons${i}`] = result.talentIcons[`cons${i}`] || ''
     }
 
     // attr (角色属性面板值): miao-plugin 格式 attr[key], attr[key+'Base'], attr[key+'Plus']
@@ -1091,7 +1102,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.2`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.3`
             }
           }
         }

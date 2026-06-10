@@ -14,7 +14,7 @@
     <div class="main-pic" style="background-image:url({{_miao_path}}{{costumeSplash||charImgs?.splash}})"></div>
     <div class="detail">
       <div class="char-name">{{name}}</div>
-      <div class="char-lv">UID {{uid}} - Lv.{{level}} {{cons}}命</div>
+      <div class="char-lv">UID {{uid}} - Lv.{{level}} <span class="cons cons-{{cons}}">{{cons}}命</span></div>
       <div>
         <!-- 天赋 (照搬 miao-plugin) -->
         {{set talentMap = talentMap || {a: '普攻', e: '战技', q: '爆发'} }}
@@ -56,6 +56,17 @@
           {{/each}}
         </ul>
       </div>
+    </div>
+    <!-- 命座图标 (照搬 miao-plugin profile-detail) -->
+    <div class="char-cons">
+      {{set consArr = [1,2,3,4,5,6]}}
+      {{each consArr idx}}
+      <div class="cons-item">
+        <div class="talent-icon {{idx > cons ? 'off' : ''}}">
+          <div class="talent-icon-img" style="background-image:url({{_miao_path}}{{imgs[`cons${idx}`]}})"></div>
+        </div>
+      </div>
+      {{/each}}
     </div>
   </div>
 

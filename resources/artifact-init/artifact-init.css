@@ -36,6 +36,25 @@ body { width: 600px; }
   margin-bottom: 20px;
   text-shadow: 0 0 3px #000, 2px 2px 4px rgba(0, 0, 0, 0.7); text-align: right;
 }
+.char-lv .cons {
+  margin-left: 5px;
+  vertical-align: bottom;
+}
+
+/* 命座文字底色 (照搬 miao-plugin common.css) */
+.cons {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0 5px;
+  border-radius: 4px;
+}
+.cons-0 { background: #666; color: #fff; }
+.cons-1 { background: #5cbac2; color: #fff; }
+.cons-2 { background: #339d61; color: #fff; }
+.cons-3 { background: #3e95b9; color: #fff; }
+.cons-4 { background: #3955b7; color: #fff; }
+.cons-5 { background: #531ba9cf; color: #fff; }
+.cons-6 { background: #ff5722; color: #fff; }
 
 /* ====== 天赋图标 (照搬 miao-plugin) ====== */
 .talent-icon {
@@ -70,6 +89,24 @@ body { width: 600px; }
   display: flex; width: 300px; margin: 0 0 10px 0;
 }
 .char-talents .talent-item { flex: 1; }
+
+/* 命座图标 (照搬 miao-plugin profile-detail.css) */
+.char-cons {
+  display: flex;
+  width: 250px;
+  position: absolute;
+  bottom: 5px;
+  left: 20px;
+  z-index: 3;
+}
+.char-cons .talent-icon {
+  width: 50px; height: 50px;
+  margin: 0 -5px;
+}
+.char-cons .talent-icon.off {
+  filter: grayscale(100%);
+  opacity: 0.4;
+}
 
 /* ====== 角色属性面板 (照搬 miao-plugin .char-attr) ====== */
 .char-attr {
