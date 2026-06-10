@@ -1006,9 +1006,9 @@ async function processArtifacts (uid, charName) {
   }
 
   return {
-    uid, charName, playerName: playerData.name || '',
+    uid, charName, charId: charMeta?.id || 0, playerName: playerData.name || '',
     charLevel, charCons, elem, charSplash, charSide,
-    talents, talentMap, talentIcons,
+    talents, talentMap, talentIcons, talentCons: charMeta?.talentCons || {},
     weaponInfo,
     charStats,
     charWeights,
@@ -1070,10 +1070,21 @@ export class artifactInitPanel extends plugin {
     // 构建模板数据 — 使用 miao-plugin 的数据格式
 
     // 天赋数据: miao-plugin 格式 {a: {level, original}, e: {...}, q: {...}}
+    // Mihomo API 返回含命座加成的等级, 需反推 original (照搬 miao-plugin CharTalent.mode='level')
     const talentData = {}
+    const talentCons = result.talentCons || {}
     for (const [key, tName] of Object.entries(result.talentMap)) {
       const level = result.talents[key] || 0
-      talentData[key] = { level, original: level }
+      let original = level
+      // 命座天赋+3 (C3/C5 常见; 达达利亚 A+1, 丝柯克 E+1)
+      const consUp = talentCons[key]
+      if (consUp && result.charCons >= consUp) {
+        original -= 3
+      }
+      // 特殊: 达达利亚 (id 10000033) 普攻+1, 丝柯克 (id 10000114) E+1
+      if (key === 'a' && result.charId === 10000033) original -= 1
+      if (key === 'e' && result.charId === 10000114) original -= 1
+      talentData[key] = { level, original }
     }
 
     // imgs (天赋+命座图标路径): miao-plugin 格式 {a: 'meta-gs/...', e: '...', q: '...', cons1: '...', ...cons6}
