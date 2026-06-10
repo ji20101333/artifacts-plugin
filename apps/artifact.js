@@ -879,6 +879,57 @@ async function processArtifacts (uid, charName) {
     })
   }
 
+  // ---- 有效词条汇总 (用于右侧表格: 跨圣遗物聚合每类副词条词条数) ----
+  const summaryMap = {}
+  const summaryOrder = []
+  for (const arti of artisList) {
+    if (arti.empty) continue
+    for (const sh of arti.subHistory) {
+      const weightKey = getWeightKey(sh.key)
+      if ((currWeights[weightKey] || 0) <= 0) continue
+      if (!summaryMap[sh.key]) {
+        summaryMap[sh.key] = { key: sh.key, count: 0 }
+        summaryOrder.push(sh.key)
+      }
+      let displayTotal = toDisplayValue(sh.key, sh.totalValue)
+      let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
+      if (sh.key === 'atkPlus') {
+        displayTotal = displayTotal / baseAttr.atk * 100
+        avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
+      } else if (sh.key === 'hpPlus') {
+        displayTotal = displayTotal / baseAttr.hp * 100
+        avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
+      } else if (sh.key === 'defPlus') {
+        displayTotal = displayTotal / baseAttr.def * 100
+        avgVal = _avgRollValue.def || toDisplayValue('def', 1)
+      }
+      summaryMap[sh.key].count += displayTotal / avgVal
+    }
+  }
+  // 按词条数降序
+  const summaryItems = summaryOrder
+    .map(key => ({
+      key,
+      shortName: subKeyShortName[key] || key,
+      count: Math.round(summaryMap[key].count * 100) / 100
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  // 计算总计
+  let totalWordCount = 0
+  let totalEffectiveCount = 0
+  for (const arti of artisList) {
+    if (arti.empty) continue
+    totalEffectiveCount += arti.effectiveCount
+    totalWordCount += arti.upgradeCount
+  }
+
+  const effectiveSummary = {
+    totalEffectiveCount,
+    totalWordCount: Math.round(totalWordCount * 100) / 100,
+    items: summaryItems.length > 0 ? summaryItems : [{ key: '', shortName: '无有效词条', count: 0 }]
+  }
+
   // ---- 构建角色面板数值 (照搬 miao-plugin ProfileDetail.render) ----
   // 权重来自 miao-plugin artis-mark.js → usefulAttr (默认: atk 75, cpct/cdmg/dmg/phy 100)
   const charWeights = _usefulAttr[charName]
@@ -962,6 +1013,7 @@ async function processArtifacts (uid, charName) {
     charStats,
     charWeights,
     artisList,
+    effectiveSummary,
     effectiveStats: effectiveStats.join('、')
   }
 }
@@ -1127,7 +1179,8 @@ export class artifactInitPanel extends plugin {
       weapon: weaponData,
       weaponInfo: result.weaponInfo,
       artis: artisForTemplate,
-      effectiveStats: result.effectiveStats
+      effectiveStats: result.effectiveStats,
+      summary: result.effectiveSummary
     }
 
     try {
@@ -1147,7 +1200,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.9`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.10.0`
             }
           }
         }

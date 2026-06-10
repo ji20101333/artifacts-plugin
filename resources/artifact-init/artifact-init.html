@@ -70,31 +70,54 @@
     </div>
   </div>
 
-  <!-- ====== 武器 + 圣遗物 ====== -->
+  <!-- ====== 武器 + 有效词条汇总 ====== -->
   <div class="profile-detail">
-    {{if weaponInfo && weaponInfo.name}}
-    <!-- 武器 (照搬 miao-plugin .artis .weapon 结构) -->
-    <div class="weapon-card">
-      <div class="weapon-img" style="background-image:url({{_miao_path}}{{weaponInfo.img}})"></div>
-      <div class="head">
-        <strong>{{weaponInfo.sName || weaponInfo.name}}</strong>
-        <span class="info">
-          <span class="star">{{weaponInfo.starText}}</span>
-          <span class="affix affix-{{weaponInfo.affix}}">精{{weaponInfo.affix}}</span>
-          Lv.{{weaponInfo.ascLevel || weaponInfo.level}}
-        </span>
-        <div class="weapon-attr">
-          <div><span>攻击</span> +{{weaponInfo.attrs.atkBase}}</div>
-          {{each weaponInfo.attrs v k}} {{if k!== 'atkBase' }}
-          <div><span>{{weaponInfo.attrTitleMap[k]}}</span> +{{v}}</div>
-          {{/if}} {{/each}}
+    <div class="detail-split">
+      {{if weaponInfo && weaponInfo.name}}
+      <!-- 武器 (左半栏, 照搬 miao-plugin .artis .weapon 结构) -->
+      <div class="detail-left">
+        <div class="weapon-card">
+          <div class="weapon-img" style="background-image:url({{_miao_path}}{{weaponInfo.img}})"></div>
+          <div class="head">
+            <strong>{{weaponInfo.sName || weaponInfo.name}}</strong>
+            <span class="info">
+              <span class="star">{{weaponInfo.starText}}</span>
+              <span class="affix affix-{{weaponInfo.affix}}">精{{weaponInfo.affix}}</span>
+              Lv.{{weaponInfo.ascLevel || weaponInfo.level}}
+            </span>
+            <div class="weapon-attr">
+              <div><span>攻击</span> +{{weaponInfo.attrs.atkBase}}</div>
+              {{each weaponInfo.attrs v k}} {{if k!== 'atkBase' }}
+              <div><span>{{weaponInfo.attrTitleMap[k]}}</span> +{{v}}</div>
+              {{/if}} {{/each}}
+            </div>
+          </div>
+          <div class="weapon-desc-cont">
+            <div class="weapon-desc">{{@weaponInfo.desc?.desc}}</div>
+          </div>
         </div>
       </div>
-      <div class="weapon-desc-cont">
-        <div class="weapon-desc">{{@weaponInfo.desc?.desc}}</div>
+      {{/if}}
+      <!-- 有效词条汇总表 (右半栏) -->
+      <div class="detail-right">
+        <div class="summary-table">
+          <div class="summary-header">
+            <span class="summary-header-label">总有效词条数</span>
+            <span class="summary-header-val">{{summary.totalEffectiveCount}}</span>
+          </div>
+          <div class="summary-header summary-header-sub">
+            <span class="summary-header-label">有效词条数</span>
+            <span class="summary-header-val">{{summary.totalWordCount}}</span>
+          </div>
+          {{each summary.items item}}
+          <div class="summary-row">
+            <span class="summary-label">{{item.shortName}}</span>
+            <span class="summary-val">{{item.count}}</span>
+          </div>
+          {{/each}}
+        </div>
       </div>
     </div>
-    {{/if}}
 
     <!-- ====== 圣遗物成长值 (v1.3.0 横向排列布局) ====== -->
     <div class="section-title">圣遗物成长值</div>

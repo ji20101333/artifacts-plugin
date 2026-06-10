@@ -172,6 +172,45 @@ body { width: 600px; }
 /* ====== 圣遗物 & 武器区 (照搬 miao-plugin) ====== */
 .profile-detail { margin-top: 10px; }
 
+/* 左右分栏: 武器(左) + 有效词条汇总(右) */
+.detail-split { display: flex; gap: 10px; }
+.detail-left { flex: 1; min-width: 0; }
+.detail-right { flex: 1; min-width: 0; }
+
+/* 有效词条汇总表 */
+.summary-table {
+  border-radius: 10px;
+  background: url("../common/cont/card-bg.png") top left repeat-x;
+  background-size: auto 100%;
+  box-shadow: 0 0 1px 0 #ccc, 2px 2px 4px 0 rgba(50, 50, 50, 0.8);
+  overflow: hidden; color: #fff; font-size: 14px;
+  height: 190px; display: flex; flex-direction: column;
+}
+.summary-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.summary-header-sub {
+  background: rgba(0, 0, 0, 0.3);
+}
+.summary-header-label {
+  font-weight: bold; color: #d3bc8e;
+}
+.summary-header-val {
+  font-weight: bold; font-size: 18px; color: #ffe699;
+}
+.summary-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 12px;
+  flex: 1;
+}
+.summary-row:nth-child(odd) { background: rgba(0, 0, 0, 0.3); }
+.summary-row:nth-child(even) { background: rgba(50, 50, 50, 0.2); }
+.summary-label { color: #ccc; }
+.summary-val { color: #ffe699; font-weight: bold; }
+
 /* 武器卡片 (照搬 miao-plugin .artis .weapon) */
 .weapon-card {
   border-radius: 10px;
