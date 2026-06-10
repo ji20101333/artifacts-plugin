@@ -71,16 +71,13 @@ async function loadStaticData () {
     _attrMap = extraMod.attrMap
 
     // 1.1 计算每个属性词条的平均成长值 (用于新词条数算法)
-    const rollSumByKey = {}, rollCountByKey = {}
-    for (const [, cfg] of Object.entries(_attrIdMap)) {
-      if (!cfg.key) continue
-      if (!rollSumByKey[cfg.key]) { rollSumByKey[cfg.key] = 0; rollCountByKey[cfg.key] = 0 }
-      rollSumByKey[cfg.key] += cfg.value
-      rollCountByKey[cfg.key]++
-    }
+    // 使用 _attrMap 的 value/valueMin (5★最大/最小值) 取中点 = 四档均值
+    // 不可从 _attrIdMap 取全量平均 (含1-4星低值, 会严重拉低)
     _avgRollValue = {}
-    for (const key of Object.keys(rollSumByKey)) {
-      _avgRollValue[key] = toDisplayValue(key, rollSumByKey[key] / rollCountByKey[key])
+    for (const [key, cfg] of Object.entries(_attrMap)) {
+      if (cfg.value && cfg.valueMin) {
+        _avgRollValue[key] = (cfg.value + cfg.valueMin) / 2
+      }
     }
 
     // 2. 圣遗物名称映射
@@ -367,7 +364,7 @@ function formatPct (num, fix = 1) {
 }
 
 // ---- AttrData 式属性计算 (照搬 miao-plugin models/attr/AttrData.js) ----
-const _baseAttrKeys = ['atk', 'def', 'hp', 'mastery', 'recharge', 'cpct', 'cdmg', 'dmg', 'phy', 'heal', 'shield']
+const _baseAttrKeys = ['atk', 'def', 'hp', 'mastery', 'recharge', 'cpct', 'cdmg', 'dmg', 'phy', 'heal', 'shield', 'coloringDmg']
 const _attrReg = new RegExp(`^(${_baseAttrKeys.join('|')})(Base|Plus|Pct)$`)
 
 function createAttrData () {
@@ -1150,7 +1147,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.8`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.9`
             }
           }
         }
