@@ -309,6 +309,12 @@ const statLabelMap = {
   cpct: '暴击率', cdmg: '暴击伤害', recharge: '元素充能', dmg: '伤害加成'
 }
 
+// 武器副词缀显示名映射 (照搬 miao-plugin)
+const weaponAttrTitleMap = {
+  atkPct: '攻击', mastery: '精通', dmg: '伤害', hpPct: '生命', defPct: '防御',
+  cpct: '暴击', cdmg: '爆伤', phy: '物伤', recharge: '充能', heal: '治疗', shield: '护盾'
+}
+
 const posNames = { 1: '生之花', 2: '死之羽', 3: '时之沙', 4: '空之杯', 5: '理之冠' }
 
 // ---- 主处理函数 ----
@@ -401,7 +407,7 @@ async function processArtifacts (uid, charName) {
       baseAtk: wBaseAtk,
       bonusKey,
       bonusVal,
-      bonusKeyName: statLabelMap[bonusKey] || bonusKey,
+      bonusKeyName: weaponAttrTitleMap[bonusKey] || statLabelMap[bonusKey] || bonusKey,
       desc,
       type: weaponMeta._type || ''
     }
@@ -635,7 +641,62 @@ export class artifactInitPanel extends plugin {
       return true
     }
 
-    // 构建模板数据
+    // 构建模板数据 — 使用 miao-plugin 的数据格式
+
+    // 天赋数据: miao-plugin 格式 {a: {level, original}, e: {...}, q: {...}}
+    const talentData = {}
+    for (const [key, tName] of Object.entries(result.talentMap)) {
+      const level = result.talents[key] || 0
+      talentData[key] = { level, original: level }
+    }
+
+    // imgs (天赋图标路径): miao-plugin 格式 {a: 'meta-gs/...', e: '...', q: '...'}
+    const imgs = {}
+    for (const [key, tName] of Object.entries(result.talentMap)) {
+      imgs[key] = result.talentIcons[key] || ''
+    }
+
+    // attr (角色属性面板值): miao-plugin 格式 attr[key], attr[key+'Base'], attr[key+'Plus']
+    const attr = {}
+    for (const stat of result.charStats) {
+      attr[stat.key] = stat.total
+      attr[stat.key + 'Base'] = stat.base
+      attr[stat.key + 'Plus'] = stat.plus
+    }
+    // charWeight: miao-plugin 格式 {key: weight}
+    const charWeight = {}
+    for (const stat of result.charStats) {
+      if (stat.weight > 0) charWeight[stat.key] = stat.weight
+    }
+
+    // 武器数据: miao-plugin 格式
+    let weaponData = null
+    if (result.weaponInfo) {
+      const wi = result.weaponInfo
+      const weaponAttrs = { atkBase: wi.baseAtk }
+      const attrTitleMap = {}
+      if (wi.bonusKey) {
+        weaponAttrs[wi.bonusKey] = wi.bonusVal
+        attrTitleMap[wi.bonusKey] = wi.bonusKeyName
+      }
+      // 转换精炼文本为 nobr 格式 (照搬 miao-plugin)
+      const descHtml = wi.desc
+        ? wi.desc.replace(/(\d+(?:\.\d+)?%?)/g, '<nobr>$1</nobr>')
+        : ''
+      weaponData = {
+        name: wi.name,
+        sName: wi.name,
+        level: wi.level,
+        affix: wi.affix,
+        star: wi.star,
+        img: wi.img,
+        attrs: weaponAttrs,
+        attrTitleMap,
+        desc: { desc: descHtml }
+      }
+    }
+
+    // 圣遗物列表
     const artisForTemplate = result.artisList.map(a => {
       if (a.empty) return { empty: true, posName: a.posName }
       return {
@@ -647,11 +708,13 @@ export class artifactInitPanel extends plugin {
           const formula = sh.growthSteps.length > 0
             ? initialText + '+' + growthTexts.join('+') + '=' + totalText
             : initialText
+          const isEffective = result.effectiveStats.split('、').includes(sh.key)
           return {
             key: sh.key,
             shortName: subKeyShortName[sh.key] || sh.key,
             formula,
-            hitCount: sh.hitCount
+            hitCount: sh.hitCount,
+            isEffective
           }
         })
       }
@@ -659,17 +722,15 @@ export class artifactInitPanel extends plugin {
 
     const renderData = {
       uid: result.uid,
-      charName: result.charName,
-      charLevel: result.charLevel,
+      name: result.charName,
+      level: result.charLevel,
       elem: result.elem,
-      charSplash: result.charSplash,
-      charSide: result.charSide,
-      talents: result.talents,
-      talentMap: result.talentMap,
-      talentIcons: result.talentIcons,
-      baseAttr: result.baseAttr,
-      weaponInfo: result.weaponInfo,
-      charStats: result.charStats,
+      costumeSplash: result.charSplash,
+      imgs,
+      talent: talentData,
+      attr,
+      charWeight,
+      weapon: weaponData,
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats
     }
@@ -685,7 +746,7 @@ export class artifactInitPanel extends plugin {
             return {
               ...data,
               sys: { scale: 1.6, ...(data.sys || {}) },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.3.0`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.4.0`
             }
           }
         }
