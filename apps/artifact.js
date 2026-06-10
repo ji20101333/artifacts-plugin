@@ -18,6 +18,8 @@ const _miaoPluginDir = path.resolve(_cwd, 'plugins/miao-plugin')
 
 // ---- 静态数据缓存 ----
 let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData, _usefulAttr
+let _artiBuffs = {}     // artifact set buff configs from calc.js
+let _pieceToSet = {}    // artifact piece name → set name mapping
 let _charMeta = {}      // character data.json keyed by numeric ID
 let _weaponById = {}    // weapon data keyed by numeric ID
 let _weaponByName = {}  // weapon data keyed by name
@@ -39,6 +41,21 @@ function staticStep (key, start, _step) {
   let refine = {}
   refine[key] = step(start, _step)
   return { title: `${key}提高[${key}]`, isStatic: true, refine }
+}
+
+// _applySetBuffs(ctx, buff, charElem): 应用圣遗物套装静态 Buff (照搬 miao-plugin Attr.setArtisAttr)
+// 仅处理 isStatic=true 的 buff; 检查 elem 限制; 应用 data 值
+function _applySetBuffs (ctx, buff, charElem) {
+  const buffsArr = Array.isArray(buff) ? buff : [buff]
+  for (const b of buffsArr) {
+    if (!b || typeof b !== 'object' || !b.isStatic) continue
+    if (b.elem && b.elem !== charElem) continue
+    if (b.data) {
+      for (const [key, val] of Object.entries(b.data)) {
+        addAttr(ctx, key, val)
+      }
+    }
+  }
 }
 
 async function loadStaticData () {
@@ -78,14 +95,31 @@ async function loadStaticData () {
       _usefulAttr = {}
     }
 
-    // 6. 加载角色元数据 (按数字ID索引)
+    // 6. 加载圣遗物套装 Buff (照搬 miao-plugin meta-gs/artifact/calc.js)
+    const artiCalcPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/calc.js')
+    if (fs.existsSync(artiCalcPath)) {
+      const artiCalcMod = await import(pathToFileURL(artiCalcPath))
+      _artiBuffs = artiCalcMod.buffs || {}
+    } else {
+      _artiBuffs = {}
+    }
+    // 构建 piece name → set name 映射 (用于判断圣遗物所属套装)
+    _pieceToSet = {}
+    for (const [setId, setData] of Object.entries(_artiData)) {
+      if (!setData.idxs || !setData.name) continue
+      for (const [pos, piece] of Object.entries(setData.idxs)) {
+        if (piece.name) _pieceToSet[piece.name] = setData.name
+      }
+    }
+
+    // 7. 加载角色元数据 (按数字ID索引)
     _charMeta = {}
     const charMetaPath = path.join(_miaoPluginDir, 'resources/meta-gs/character/data.json')
     if (fs.existsSync(charMetaPath)) {
       _charMeta = JSON.parse(fs.readFileSync(charMetaPath, 'utf-8'))
     }
 
-    // 7. 加载武器数据 (按ID & 名称索引)
+    // 8. 加载武器数据 (按ID & 名称索引)
     // 类型级 data.json (如 sword/data.json): 仅有 id/name/star — 用于获取武器列表
     // 单个武器 data.json (如 sword/雾切之回光/data.json): 有完整的 attr/bonusKey/bonusData/affixData
     _weaponById = {}
@@ -132,7 +166,7 @@ async function loadStaticData () {
       }
     }
 
-    // 8. 加载武器特效 Buff 配置 (照搬 miao-plugin resources/meta-gs/weapon/index.js)
+    // 9. 加载武器特效 Buff 配置 (照搬 miao-plugin resources/meta-gs/weapon/index.js)
     // 每个武器类型的 calc.js 导出 function(step, staticStep) → { 武器名: buffConfig }
     _weaponBuffs = {}
     const weaponTypeList = ['sword', 'claymore', 'polearm', 'bow', 'catalyst']
@@ -730,6 +764,28 @@ async function processArtifacts (uid, charName) {
     }
   }
 
+  // 圣遗物套装静态 Buff (照搬 miao-plugin Attr.setArtisAttr → ArtifactSet.getArtisSetBuff)
+  // 统计各套装件数, 激活 2/4 件套效果
+  const setCounts = {}
+  for (let pos = 1; pos <= 5; pos++) {
+    const arti = artisData[pos]
+    if (!arti || !arti.name) continue
+    const setName = _pieceToSet[arti.name]
+    if (setName) setCounts[setName] = (setCounts[setName] || 0) + 1
+  }
+  for (const [setName, count] of Object.entries(setCounts)) {
+    const setBuffs = _artiBuffs[setName]
+    if (!setBuffs) continue
+    // 2件套 (count >= 2)
+    if (count >= 2 && setBuffs[2]) {
+      _applySetBuffs(attrCtx, setBuffs[2], elem)
+    }
+    // 4件套 (count >= 4)
+    if (count >= 4 && setBuffs[4]) {
+      _applySetBuffs(attrCtx, setBuffs[4], elem)
+    }
+  }
+
   // ---- 圣遗物列表处理 + 累加词条到属性 ----
   const artisList = []
 
@@ -1027,7 +1083,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.7.1`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.8.0`
             }
           }
         }
