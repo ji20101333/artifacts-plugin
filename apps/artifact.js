@@ -175,17 +175,28 @@ function isElemKey (key) {
   return _elemKeys.includes(key)
 }
 
-// ---- 天赋图标查找 ----
-function getTalentIcons (charName, talentIds) {
+// ---- 天赋图标查找 (照搬 miao-plugin CharImg.getImgs) ----
+function getTalentIcons (charName, talentIds, weaponType) {
   const icons = {}
-  const iconsDir = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'icons')
-  // 尝试从角色icons目录获取
-  for (const [key, tid] of Object.entries(talentIds)) {
-    const iconPath = path.join(iconsDir, `talent-${key}.webp`)
-    if (fs.existsSync(iconPath)) {
-      icons[key] = `meta-gs/character/${charName}/icons/talent-${key}.webp`
+  const charBase = `meta-gs/character/${charName}`
+  const iconsDir = path.join(_miaoPluginDir, 'resources', charBase, 'icons')
+  // talent-a: 使用武器类型图标 (照搬 miao-plugin: imgs.a = /common/item/atk-${weaponType}.webp)
+  icons.a = `common/item/atk-${weaponType || 'sword'}.webp`
+  // talent-e / talent-q: 角色专属天赋图标
+  for (const key of ['e', 'q']) {
+    const talentPath = path.join(iconsDir, `talent-${key}.webp`)
+    if (fs.existsSync(talentPath)) {
+      icons[key] = `${charBase}/icons/talent-${key}.webp`
     } else {
-      icons[key] = ''
+      // fallback: 尝试命之座图标 (照搬 miao-plugin)
+      for (let ci = 1; ci <= 6; ci++) {
+        const consPath = path.join(iconsDir, `cons-${ci}.webp`)
+        if (fs.existsSync(consPath)) {
+          icons[key] = `${charBase}/icons/cons-${ci}.webp`
+          break
+        }
+      }
+      if (!icons[key]) icons[key] = ''
     }
   }
   return icons
@@ -207,16 +218,14 @@ function findWeaponData (weaponName) {
 
 function getWeaponImage (weaponData) {
   if (!weaponData || !weaponData._type) return ''
-  const imgPath = path.join(_miaoPluginDir, 'resources/meta-gs/weapon',
-    weaponData._type, weaponData.name, 'imgs', 'awaken.webp')
-  if (fs.existsSync(imgPath)) {
-    return `meta-gs/weapon/${weaponData._type}/${weaponData.name}/imgs/awaken.webp`
-  }
-  // fallback
-  const fPath = path.join(_miaoPluginDir, 'resources/meta-gs/weapon',
-    weaponData._type, weaponData.name, 'imgs', 'icon.webp')
-  if (fs.existsSync(fPath)) {
-    return `meta-gs/weapon/${weaponData._type}/${weaponData.name}/imgs/icon.webp`
+  const basePath = path.join(_miaoPluginDir, 'resources/meta-gs/weapon',
+    weaponData._type, weaponData.name)
+  // 武器图片直接在武器目录下 (非 imgs/ 子目录)
+  for (const imgName of ['awaken.webp', 'icon.webp']) {
+    const imgPath = path.join(basePath, imgName)
+    if (fs.existsSync(imgPath)) {
+      return `meta-gs/weapon/${weaponData._type}/${weaponData.name}/${imgName}`
+    }
   }
   return ''
 }
@@ -535,7 +544,7 @@ async function processArtifacts (uid, charName) {
     for (const [tid, key] of Object.entries(charMeta.talentId)) {
       talentIds[key] = tid
     }
-    talentIcons = getTalentIcons(charName, talentIds)
+    talentIcons = getTalentIcons(charName, talentIds, charMeta?.weapon)
   }
 
   // ---- 武器数据 ----
@@ -941,10 +950,19 @@ export class artifactInitPanel extends plugin {
         {
           retType: 'base64',
           beforeRender ({ data }) {
+            // 照搬 miao-plugin Render.js: 设置 _miao_path 指向 miao-plugin 资源
+            // runtime 已预设 _miao_path / _res_path, 此处确保 layout 路径正确
+            const miaoResPath = data._miao_path || data.pluResPath || data._res_path || ''
+            const layoutPath = miaoResPath
+              ? miaoResPath.replace(/artifacts-plugin/g, 'miao-plugin') + 'common/layout/'
+              : ''
             return {
               ...data,
-              sys: { scale: 1.6, ...(data.sys || {}) },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.2`
+              _miao_path: data._miao_path || miaoResPath,
+              _layout_path: layoutPath || data._layout_path || '',
+              elemLayout: layoutPath ? layoutPath + 'elem.html' : (data.elemLayout || ''),
+              sys: { ...(data.sys || {}), scale: 1.6 },
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.3`
             }
           }
         }
