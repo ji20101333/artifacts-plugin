@@ -1,36 +1,38 @@
-# Artifacts-Plugin
+# artifacts-plugin
 
-#### Description
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+Artifact Initial Value Panel Plugin for Miao-Yunzai (TRSS-Yunzai). Displays character artifact initial values and substat growth history.
 
-#### Software Architecture
-Software architecture description
+## Features
 
-#### Installation
+### 1. Artifact Initial Value Panel
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+Command: `#<character>圣遗物初始值面板`
 
-#### Instructions
+Example: `#Ganyu圣遗物初始值面板`
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+Returns an image showing each artifact's initial values and growth history:
+- Artifact icon + level
+- Main stat
+- Substat growth history (format: `initial+growth1+...+growthN=total`)
+- Current substat count
+- Effective substat count (based on liangshi-calc character definitions)
 
-#### Contribution
+### 2. Plugin Update
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+Command: `#圣遗物成长值插件更新`
 
+Performs `git pull` and auto-restarts the bot (following miao-plugin's update pattern). Bot master only.
 
-#### Gitee Feature
+## Dependencies
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+- miao-plugin (MIT, Copyright (c) 2023 Yoimiya)
+- liangshi-calc (MIT, Copyright (c) 2024 liangshi)
+- TRSS-Yunzai (Miao-Yunzai)
+
+## License
+
+MIT License. See LICENSE file for details.
+
+This plugin references data from:
+- [miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git) - MIT License
+- [liangshi-calc](https://gitee.com/liangshi233/liangshi-calc.git) - MIT License

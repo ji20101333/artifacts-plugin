@@ -1,0 +1,204 @@
+/* 圣遗物初始值面板样式 */
+/* 参考 miao-plugin profile-detail.css 布局风格 */
+
+body {
+  width: 800px;
+  font-family: "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+
+.container {
+  width: 800px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.artifact-init-cont {
+  padding: 15px 20px;
+}
+
+/* 头部信息区 */
+.header {
+  display: flex;
+  align-items: center;
+  padding: 10px 0 15px;
+  border-bottom: 2px solid rgba(255,255,255,0.2);
+  margin-bottom: 15px;
+}
+
+.header .title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.header .subtitle {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  margin-left: 15px;
+}
+
+.header .uid {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin-left: auto;
+}
+
+/* 有效词条说明 */
+.effective-info {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  padding: 5px 0 12px;
+  text-align: right;
+}
+
+/* 圣遗物列表 */
+.artis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arti-row {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  gap: 10px;
+}
+
+.arti-row.empty {
+  background: rgba(255,255,255,0.02);
+  opacity: 0.4;
+}
+
+/* 圣遗物图标 */
+.arti-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  position: relative;
+}
+
+.arti-icon .img {
+  width: 48px;
+  height: 48px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border-radius: 4px;
+}
+
+.arti-icon .level {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+
+/* 位置标签 */
+.arti-pos {
+  flex-shrink: 0;
+  width: 40px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+}
+
+/* 圣遗物信息区 */
+.arti-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.arti-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arti-main {
+  font-size: 12px;
+  color: #ffd780;
+}
+
+/* 副词条成长历史 */
+.arti-subs {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 2px;
+}
+
+.sub-row {
+  font-size: 11px;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.5;
+}
+
+.sub-row .sub-name {
+  display: inline-block;
+  min-width: 42px;
+  color: rgba(255,255,255,0.55);
+}
+
+.sub-row .sub-formula {
+  color: #a0d6ff;
+  word-break: break-all;
+}
+
+/* 词条统计区 */
+.arti-stats {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 55px;
+}
+
+.arti-stats .count {
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.arti-stats .eff-count {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffd780;
+  white-space: nowrap;
+}
+
+.arti-stats .stat-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+}
+
+/* 空圣遗物占位 */
+.arti-row.empty .arti-name {
+  color: rgba(255,255,255,0.3);
+}
+
+/* 底部信息 */
+.footer {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+}

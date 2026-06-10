@@ -1,39 +1,90 @@
-# Artifacts-Plugin
+# artifacts-plugin
 
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
+圣遗物初始值面板插件 - 基于 Miao-Yunzai（TRSS-Yunzai），展示角色圣遗物初始值及副词条成长历史。
 
-#### 软件架构
-软件架构说明
+## 功能
 
+### 1. 圣遗物初始值面板
 
-#### 安装教程
+指令：`#xx圣遗物初始值面板`（xx 为角色名，支持别名）
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+示例：
+- `#甘雨圣遗物初始值面板`
+- `#胡桃圣遗物初始值面板`
+- `#雷电将军圣遗物初始值面板`
 
-#### 使用说明
+返回一张图片，展示角色所有圣遗物的初始值及成长历史：
+- 圣遗物图标 + 等级
+- 主词条
+- 副词条成长历史（格式：`初始值+第一次成长+...+最后一次成长=最终值`）
+- 当前词条数
+- 总有效词条数（基于 liangshi-calc 的角色有效词条定义）
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+若无角色/UID 绑定的圣遗物数据，返回相应错误提示。
 
-#### 参与贡献
+### 2. 插件更新
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+指令：`#圣遗物成长值插件更新`
 
+执行 `git pull` 更新插件自身，更新成功后自动重启 Bot（参考 miao-plugin 的 `#喵喵更新` 重启机制）。
 
-#### 特技
+仅 Bot 主人可用。
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+## 安装
+
+1. 将本插件放入 Yunzai-Bot 的 `plugins/` 目录下
+2. 确保已安装 `miao-plugin` 和 `liangshi-calc` 插件（作为数据依赖）
+3. 重启 Bot
+
+```bash
+cd plugins
+git clone https://gitee.com/ji20101333/artifacts-plugin.git artifacts-plugin
+```
+
+## 依赖
+
+- **miao-plugin**：提供圣遗物词条映射数据、渲染基础设施、UID 绑定查询
+- **liangshi-calc**：提供角色有效词条定义
+- **TRSS-Yunzai**（Miao-Yunzai）：Bot 框架
+
+## 版本历史
+
+### v1.0.0 (2026-06-11)
+
+- 初始版本
+- 实现 `#xx圣遗物初始值面板` 指令
+- 实现 `#圣遗物成长值插件更新` 指令
+- 圣遗物一行一个展示，包含成长历史
+- 有效词条基于 liangshi-calc 角色对应关系
+
+## 许可证
+
+本项目采用 MIT 许可证。
+
+### 第三方依赖及许可证
+
+本插件参考并使用了以下开源项目的数据：
+
+- **[miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git)** — MIT License, Copyright (c) 2023 Yoimiya
+  - 圣遗物词条映射数据（`attrIdMap`、`mainIdMap`、`attrMap`）
+  - 角色别名数据
+  - 渲染基础设施
+
+- **[liangshi-calc](https://gitee.com/liangshi233/liangshi-calc.git)** — MIT License, Copyright (c) 2024 liangshi
+  - 角色有效词条定义（`mainAttr.js`）
+  - 角色有效词条权重参考
+
+以上项目均为 MIT 许可证，允许自由使用、复制、修改、合并、发布、分发、再许可和/或销售副本，但须保留原始版权声明和许可声明。
+
+本插件为非商业项目，仅供学习交流使用。
+
+## 参与贡献
+
+1. Fork 本仓库
+2. 新建 Feat_xxx 分支
+3. 提交代码
+4. 新建 Pull Request
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

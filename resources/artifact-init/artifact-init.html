@@ -1,0 +1,85 @@
+{{extend elemLayout}}
+
+{{block 'css'}}
+<link rel="stylesheet" type="text/css" href="{{_res_path}}artifact-init/artifact-init.css"/>
+{{/block}}
+
+{{block 'main'}}
+<div class="artifact-init-cont">
+  <!-- 头部 -->
+  <div class="header">
+    <div class="title">{{charName}} - 圣遗物初始值面板</div>
+    <div class="subtitle">Lv.{{charLevel}}</div>
+    <div class="uid">UID: {{uid}}</div>
+  </div>
+
+  <!-- 有效词条说明 -->
+  <div class="effective-info">当前角色有效词条：{{effectiveStats}}</div>
+
+  <!-- 圣遗物列表 -->
+  <div class="artis-list">
+    {{each artis arti}}
+    {{if arti.empty}}
+    <!-- 空位 -->
+    <div class="arti-row empty">
+      <div class="arti-icon">
+        <div class="img" style="background-image:url({{_miao_path}}common/item/empty.png)"></div>
+      </div>
+      <div class="arti-pos">{{arti.posName}}</div>
+      <div class="arti-info">
+        <div class="arti-name">暂无圣遗物</div>
+      </div>
+      <div class="arti-stats">
+        <div class="count">-</div>
+      </div>
+    </div>
+    {{else}}
+    <!-- 正常圣遗物 -->
+    <div class="arti-row">
+      <!-- 图标 -->
+      <div class="arti-icon">
+        {{if arti.img}}
+        <div class="img" style="background-image:url({{_miao_path}}{{arti.img}})"></div>
+        {{else}}
+        <div class="img" style="background-image:url({{_miao_path}}common/item/empty.png)"></div>
+        {{/if}}
+        <span class="level">+{{arti.level}}</span>
+      </div>
+
+      <!-- 位置 -->
+      <div class="arti-pos">{{arti.posName}}</div>
+
+      <!-- 信息 -->
+      <div class="arti-info">
+        <div class="arti-name" title="{{arti.setName}} - {{arti.name}}">{{arti.name}}</div>
+        <div class="arti-main">主词条：{{arti.mainKeyName}} +{{arti.mainValueText}}</div>
+        <div class="arti-subs">
+          {{each arti.subStats sub}}
+          <div class="sub-row">
+            <span class="sub-name">{{sub.shortName}}</span>
+            <span class="sub-formula">{{sub.growthFormula}}</span>
+            {{if sub.hitCount > 1}}
+            <span style="color:rgba(255,255,255,0.35)"> ({{sub.hitCount}}次)</span>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+
+      <!-- 词条统计 -->
+      <div class="arti-stats">
+        <div class="eff-count">{{arti.effectiveCount}}</div>
+        <div class="stat-label">有效词条</div>
+        <div class="count">{{arti.upgradeCount}}词条</div>
+      </div>
+    </div>
+    {{/if}}
+    {{/each}}
+  </div>
+
+  <!-- 底部 -->
+  <div class="footer">
+    圣遗物初始值面板 · 有效词条参考 liangshi-calc · 数据来源：Enka/Mihomo API
+  </div>
+</div>
+{{/block}}
