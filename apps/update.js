@@ -89,7 +89,8 @@ export class artifactUpdate extends plugin {
               }
             }
 
-            msg += '\n\n正在尝试重新启动Yunzai以应用更新...'
+            msg += '\n\n✅ 插件更新已完成，正在重启Bot以应用更新...'
+            msg += '\n重启完成后即可使用新版本功能~'
 
             event.reply(msg).catch(() => {})
 
