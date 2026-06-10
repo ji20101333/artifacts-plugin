@@ -19,6 +19,7 @@ const _cwd = process.cwd()
 const _miaoPluginDir = path.resolve(_cwd, 'plugins/miao-plugin')
 
 let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData
+let _charMetaData = {}
 let _dataLoaded = false
 
 async function loadStaticData () {
@@ -49,12 +50,48 @@ async function loadStaticData () {
     )
     _mainAttrData = mainAttrMod.mainAttrData
 
+    // 5. 加载角色元素信息 (按需缓存)
+    _charMetaData = {}
+    const charMetaPath = path.join(_miaoPluginDir, 'resources/meta-gs/character/data.json')
+    if (fs.existsSync(charMetaPath)) {
+      _charMetaData = JSON.parse(fs.readFileSync(charMetaPath, 'utf-8'))
+    }
+
     _dataLoaded = true
   } catch (e) {
     if (logger?.error) {
       logger.error('[artifacts-plugin] 加载静态数据失败:', e.message)
     }
   }
+}
+
+// ---- 查找角色元数据 (按名称) ----
+function findCharMeta (charName) {
+  if (!_charMetaData) return null
+  for (const [id, meta] of Object.entries(_charMetaData)) {
+    if (meta.name === charName) return meta
+  }
+  return null
+}
+
+// ---- 获取角色元素 ----
+function getCharElement (charName) {
+  const meta = findCharMeta(charName)
+  return meta?.elem || 'hydro'
+}
+
+// ---- 获取角色图片 ----
+function getCharImage (charName, type = 'splash') {
+  const imgPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'imgs', `${type}.webp`)
+  if (fs.existsSync(imgPath)) {
+    return `meta-gs/character/${charName}/imgs/${type}.webp`
+  }
+  // fallback: try side icon
+  const sidePath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'imgs', 'side.webp')
+  if (fs.existsSync(sidePath)) {
+    return `meta-gs/character/${charName}/imgs/side.webp`
+  }
+  return ''
 }
 
 // ---- 角色名解析 ----
@@ -228,16 +265,21 @@ async function processArtifacts (uid, charName) {
     }
   }
 
-  // 3. 圣遗物数据
+  // 3. 角色元素和图片
+  const elem = matchedAvatar.elem || getCharElement(charName) || 'hydro'
+  const charSplash = getCharImage(charName, 'splash') || getCharImage(charName, 'gacha') || ''
+  const charSide = getCharImage(charName, 'side') || getCharImage(charName, 'face') || ''
+
+  // 4. 圣遗物数据
   const artisData = matchedAvatar.artis || {}
   if (Object.keys(artisData).length === 0) {
     return { error: `角色「${charName}」暂无圣遗物数据` }
   }
 
-  // 4. 有效词条定义
+  // 5. 有效词条定义
   const effectiveStats = getEffectiveStats(charName)
 
-  // 5. 处理每个圣遗物
+  // 6. 处理每个圣遗物
   const artisList = []
   for (let pos = 1; pos <= 5; pos++) {
     const arti = artisData[pos]
@@ -269,7 +311,7 @@ async function processArtifacts (uid, charName) {
     const img = findArtifactImage(name)
 
     artisList.push({
-      pos, empty: false, name, level, img,
+      pos, empty: false, name, level, star, img,
       mainKey, mainValText: formatStatValue(mainKey, mainVal),
       mainKeyName: mainKeyNameMap[mainKey] || mainKey,
       subHistory, upgradeCount, effectiveCount,
@@ -281,6 +323,9 @@ async function processArtifacts (uid, charName) {
     uid, charName,
     playerName: playerData.name || '',
     charLevel: matchedAvatar.level || '',
+    elem,
+    charSplash,
+    charSide,
     artisList,
     effectiveStats: effectiveStats.join('、')
   }
@@ -356,6 +401,9 @@ export class artifactInitPanel extends plugin {
       uid: result.uid,
       charName: result.charName,
       charLevel: result.charLevel,
+      elem: result.elem,
+      charSplash: result.charSplash,
+      charSide: result.charSide,
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats
     }
@@ -369,17 +417,17 @@ export class artifactInitPanel extends plugin {
         {
           retType: 'base64',
           beforeRender ({ data }) {
-            const resPath = data.pluResPath || `../../../plugins/artifacts-plugin/resources/`
+            // 使用 runtime 计算好的路径，不覆盖 _res_path 和 _miao_path
+            // 只追加额外数据
             return {
               ...data,
-              _res_path: resPath,
-              _miao_path: `../../../plugins/miao-plugin/resources/`,
-              _layout_path: path.resolve(_miaoPluginDir, 'resources/common/layout/'),
-              _tpl_path: path.resolve(_miaoPluginDir, 'resources/common/tpl/'),
-              defaultLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/default.html'),
-              elemLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/elem.html'),
-              sys: { scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.1.0`
+              // _res_path 和 _miao_path 由 runtime 自动计算 (基于 HTML 模板深度)
+              // 不需要手动覆盖 — 否则会破坏路径解析
+              sys: {
+                scale: 1.6,
+                ...(data.sys || {})
+              },
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.2.0`
             }
           }
         }

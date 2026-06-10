@@ -5,81 +5,73 @@
 {{/block}}
 
 {{block 'main'}}
-<div class="artifact-init-cont">
-  <!-- 头部 -->
-  <div class="header">
-    <div class="title">{{charName}} - 圣遗物成长值面板</div>
-    <div class="subtitle">Lv.{{charLevel}}</div>
-    <div class="uid">UID: {{uid}}</div>
+<div class="profile-cont game-gs">
+  <!-- 角色头部区 - 仿 miao-plugin profile-detail basic 区块 -->
+  <div class="basic">
+    {{if charSplash}}
+    <div class="main-pic" style="background-image:url({{_miao_path}}{{charSplash}})"></div>
+    {{/if}}
+    <div class="detail">
+      <div class="char-name">{{charName}}</div>
+      <div class="char-lv">UID {{uid}} - Lv.{{charLevel}}</div>
+      <div class="char-eff-info">
+        有效词条：{{effectiveStats}}
+      </div>
+    </div>
   </div>
 
-  <!-- 有效词条说明 -->
-  <div class="effective-info">当前角色有效词条：{{effectiveStats}}</div>
-
   <!-- 圣遗物列表 -->
-  <div class="artis-list">
+  <div class="artis artis-growth">
     {{each artis arti}}
     {{if arti.empty}}
     <!-- 空位 -->
-    <div class="arti-row empty">
+    <div class="item arti arti-empty">
       <div class="arti-icon">
-        <div class="img" style="background-image:url({{_miao_path}}common/item/empty.png)"></div>
+        <div class="img" style="background-image:url({{_res_path}}common/item/artifact-icon.webp)"></div>
       </div>
-      <div class="arti-pos">{{arti.posName}}</div>
-      <div class="arti-info">
-        <div class="arti-name">暂无圣遗物</div>
-      </div>
-      <div class="arti-stats">
-        <div class="count">-</div>
+      <div class="head">
+        <strong>{{arti.posName}}</strong>
+        <span class="no-arti">暂无圣遗物</span>
       </div>
     </div>
     {{else}}
     <!-- 正常圣遗物 -->
-    <div class="arti-row">
-      <!-- 图标 -->
+    <div class="item arti">
       <div class="arti-icon">
         {{if arti.img}}
         <div class="img" style="background-image:url({{_miao_path}}{{arti.img}})"></div>
         {{else}}
-        <div class="img" style="background-image:url({{_miao_path}}common/item/empty.png)"></div>
+        <div class="img" style="background-image:url({{_res_path}}common/item/artifact-icon.webp)"></div>
         {{/if}}
-        <span class="level">+{{arti.level}}</span>
+        <span>+{{arti.level}}</span>
       </div>
-
-      <!-- 位置 -->
-      <div class="arti-pos">{{arti.posName}}</div>
-
-      <!-- 信息 -->
-      <div class="arti-info">
-        <div class="arti-name" title="{{arti.setName}} - {{arti.name}}">{{arti.name}}</div>
-        <div class="arti-main">主词条：{{arti.mainKeyName}} +{{arti.mainValueText}}</div>
-        <div class="arti-subs">
-          {{each arti.subStats sub}}
-          <div class="sub-row">
-            <span class="sub-name">{{sub.shortName}}</span>
-            <span class="sub-formula">{{sub.growthFormula}}</span>
-            {{if sub.hitCount > 1}}
-            <span style="color:rgba(255,255,255,0.35)"> ({{sub.hitCount}}次)</span>
-            {{/if}}
-          </div>
-          {{/each}}
-        </div>
+      <div class="head">
+        <strong>{{arti.posName}} · {{arti.name}}</strong>
+        <span class="arti-main-stat">{{arti.mainKeyName}} +{{arti.mainValText}}</span>
+        <span class="arti-info-stat">
+          <span class="eff-count">有效 {{arti.effectiveCount}}</span>
+          <span class="upg-count">{{arti.upgradeCount}}词条</span>
+        </span>
       </div>
-
-      <!-- 词条统计 -->
-      <div class="arti-stats">
-        <div class="eff-count">{{arti.effectiveCount}}</div>
-        <div class="stat-label">有效词条</div>
-        <div class="count">{{arti.upgradeCount}}词条</div>
-      </div>
+      <ul class="detail attr growth-detail">
+        {{each arti.subStats sub}}
+        <li>
+          <span class="title">{{sub.shortName}}</span>
+          <span class="val growth-formula">{{sub.formula}}</span>
+          {{if sub.hitCount > 1}}
+          <span class="hit">({{sub.hitCount}}次)</span>
+          {{/if}}
+        </li>
+        {{/each}}
+      </ul>
     </div>
     {{/if}}
     {{/each}}
   </div>
 
-  <!-- 底部 -->
-  <div class="footer">
-    圣遗物成长值面板 · 有效词条参考 liangshi-calc · 数据来源：Enka/Mihomo API
+  <!-- 底部说明 -->
+  <div class="artis-notice">
+    圣遗物成长值面板 · 有效词条参考 liangshi-calc · 数据来源 Enka/Mihomo API
   </div>
 </div>
 {{/block}}
