@@ -4,124 +4,132 @@
 <link rel="stylesheet" type="text/css" href="{{_res_path}}artifact-init/artifact-init.css"/>
 {{/block}}
 
-{{set weaponInfo = weapon}}
-{{set charImgs = imgs}}
-
 {{block 'main'}}
 <div class="profile-cont game-gs">
   <!-- ====== 角色头部区 (照搬 miao-plugin profile-detail) ====== -->
   <div class="basic">
-    <div class="main-pic" style="background-image:url({{_miao_path}}{{costumeSplash||charImgs?.splash}})"></div>
+    {{if costumeSplash}}
+    <div class="main-pic" style="background-image:url({{_miao_path}}{{costumeSplash}})"></div>
+    {{/if}}
     <div class="detail">
       <div class="char-name">{{name}}</div>
-      <div class="char-lv">UID {{uid}} - Lv.{{level}}</div>
-      <div>
-        <!-- 天赋 (照搬 miao-plugin) -->
-        {{set talentMap = {a: '普攻', e: '战技', q: '爆发'} }}
-        <div class="char-talents">
-          {{each talentMap tName key}}
-          {{set talentItem = talent[key] || {} }}
-          <div class="talent-item">
-            <div class="talent-icon
-               {{talentItem.level > talentItem.original ? `talent-plus`:``}}
-                {{talentItem.original >= 10 ? `talent-crown`:``}}">
-              <div class="talent-icon-img"
-                   style="background-image:url({{_miao_path}}{{charImgs[key]}})"></div>
-              <strong>{{talentItem.level}}</strong>
-            </div>
+      <div class="char-lv">UID {{uid}} - Lv.{{level}} {{cons}}命</div>
+      <!-- 天赋 (照搬 miao-plugin) -->
+      {{set talentMap = talentMap || {a: '普攻', e: '战技', q: '爆发'} }}
+      <div class="char-talents">
+        {{each talentMap tName key}}
+        {{set talentItem = talent[key] || {} }}
+        <div class="talent-item">
+          <div class="talent-icon
+             {{talentItem.level > talentItem.original ? `talent-plus`:``}}
+              {{talentItem.original >= 10 ? `talent-crown`:``}}">
+            <div class="talent-icon-img"
+                 style="background-image:url({{_miao_path}}{{imgs[key]}})"></div>
+            <strong>{{talentItem.level}}</strong>
           </div>
-          {{/each}}
         </div>
-        <!-- 角色属性面板 (照搬 miao-plugin) -->
-        {{set attrMap = {hp:'生命值',atk:'攻击力',def:'防御力',mastery:'元素精通',cpct:'暴击率',cdmg:'暴击伤害',recharge:'元素充能',dmg:'伤害加成'} }}
-        {{set cw = charWeight || {} }}
-        <ul class="char-attr">
-          {{each attrMap title key}}
-          <li>
-            <div class="icon"><i class="i-{{key}}"></i></div>
-            <div class="title">{{title}}</div>
-            <div class="weight">
-              {{if cw[key]}}
-              <span class="{{cw[key]>=80?'gold':'normal'}}">{{cw[key]}}</span>
-              {{/if}}
-            </div>
-            <div class="value">
-              {{attr[key]}}
-            </div>
-            <div class="value2">
-              <span class="base {{attr[key+'Base'] === '0.0%' || attr[key+'Base'] === '0' ? 'zero':''}}">{{attr[key+'Base']}}</span>
-              <span class="plus">{{attr[key+'Plus']}}</span>
-            </div>
-          </li>
-          {{/each}}
-        </ul>
+        {{/each}}
       </div>
     </div>
   </div>
 
-  <!-- ====== 武器 + 圣遗物 ====== -->
-  <div class="profile-detail">
-    {{if weaponInfo && weaponInfo.name}}
-    <!-- 武器 (照搬 miao-plugin .artis .weapon 结构) -->
-    <div class="weapon-card">
-      <div class="weapon-img" style="background-image:url({{_miao_path}}{{weaponInfo.img}})"></div>
-      <div class="head">
-        <strong>{{weaponInfo.sName || weaponInfo.name}}</strong>
-        <span class="info">
-          <span class="star">{{weaponInfo.starText}}</span>
-          <span class="affix affix-{{weaponInfo.affix}}">精{{weaponInfo.affix}}</span>
-          Lv.{{weaponInfo.ascLevel || weaponInfo.level}}
-        </span>
-        <div class="weapon-attr">
-          <div><span>攻击</span> +{{weaponInfo.attrs.atkBase}}</div>
-          {{each weaponInfo.attrs v k}} {{if k!== 'atkBase' }}
-          <div><span>{{weaponInfo.attrTitleMap[k]}}</span> +{{v}}</div>
-          {{/if}} {{/each}}
-        </div>
+  <!-- ====== 角色属性面板 (照搬 miao-plugin profile-detail) ====== -->
+  {{set attrMap = {hp:'生命值',atk:'攻击力',def:'防御力',mastery:'元素精通',cpct:'暴击率',cdmg:'暴击伤害',recharge:'元素充能',dmg:'伤害加成'} }}
+  {{set cw = charWeight || {} }}
+  <ul class="char-attr">
+    {{each attrMap title key}}
+    <li>
+      <div class="icon"><i class="i-{{key}}"></i></div>
+      <div class="title">{{title}}</div>
+      <div class="weight">
+        {{if cw[key]}}
+        <span class="{{cw[key]>=80?'gold':'normal'}}">{{cw[key]}}</span>
+        {{/if}}
       </div>
-      <div class="weapon-desc-cont">
-        <div class="weapon-desc">{{@weaponInfo.desc?.desc}}</div>
+      <div class="value">
+        {{attr[key]}}
+      </div>
+      <div class="value2">
+        <span class="base {{attr[key+'Base'] === '0.0%' || attr[key+'Base'] === '0' ? 'zero':''}}">{{attr[key+'Base']}}</span>
+        <span class="plus">{{attr[key+'Plus']}}</span>
+      </div>
+    </li>
+    {{/each}}
+  </ul>
+
+  <!-- ====== 武器 (照搬 miao-plugin) ====== -->
+  {{if weapon && weapon.name}}
+  <div class="weapon-card">
+    <div class="weapon-img" style="background-image:url({{_miao_path}}{{weapon.img}})"></div>
+    <div class="head">
+      <strong>{{weapon.sName || weapon.name}}</strong>
+      <span class="info">
+        <span class="star">{{weapon.starText}}</span>
+        <span class="affix affix-{{weapon.affix}}">精{{weapon.affix}}</span>
+        Lv.{{weapon.ascLevel || weapon.level}}
+      </span>
+      <div class="weapon-attr">
+        <div><span>攻击</span> +{{weapon.attrs.atkBase}}</div>
+        {{each weapon.attrs v k}} {{if k!== 'atkBase' }}
+        <div><span>{{weapon.attrTitleMap[k]}}</span> +{{v}}</div>
+        {{/if}} {{/each}}
       </div>
     </div>
+    {{if weapon.desc?.desc}}
+    <div class="weapon-desc-cont">
+      <div class="weapon-desc">{{@weapon.desc?.desc}}</div>
+    </div>
     {{/if}}
+  </div>
+  {{/if}}
 
-    <!-- ====== 圣遗物成长值 ====== -->
-    <div class="section-title">圣遗物成长值</div>
+  <!-- ====== 圣遗物成长值 (v1.3.0 横向排列布局) ====== -->
+  <div class="section-title">圣遗物成长值</div>
+  <div class="artis-growth-section">
     {{each artis arti}}
     {{if arti.empty}}
-    <div class="arti-item arti-row-empty">
-      <div class="arti-icon">
+    <div class="arti-row empty">
+      <div class="arti-row-icon">
         <div class="img" style="background-image:url({{_res_path}}common/item/artifact-icon.webp)"></div>
       </div>
-      <div class="head">
-        <strong>{{arti.posName}}</strong>
-        <span class="no-arti">暂无圣遗物</span>
+      <div class="arti-row-main">
+        <div class="arti-pos-label">{{arti.posName}}</div>
+        <div class="no-arti">暂无圣遗物</div>
       </div>
     </div>
     {{else}}
-    <div class="arti-item">
-      <div class="arti-icon">
+    <div class="arti-row">
+      <!-- 圣遗物图标 -->
+      <div class="arti-row-icon">
         {{if arti.img}}
         <div class="img" style="background-image:url({{_miao_path}}{{arti.img}})"></div>
         {{else}}
         <div class="img" style="background-image:url({{_res_path}}common/item/artifact-icon.webp)"></div>
         {{/if}}
-        <span>+{{arti.level}}</span>
+        <span class="level">+{{arti.level}}</span>
       </div>
-      <div class="head">
-        <strong>{{arti.name}}</strong>
-        <span class="arti-pos">{{arti.posName}}</span>
+
+      <!-- 圣遗物名称 + 主词条 -->
+      <div class="arti-row-main">
+        <div class="arti-pos-label">{{arti.posName}} · {{arti.name}}</div>
+        <div class="arti-main-stat">{{arti.mainKeyName}} <span class="main-val">+{{arti.mainValText}}</span></div>
       </div>
-      <ul class="detail attr">
-        <li class="arti-main"><span class="title">{{arti.mainKeyName}}</span><span class="val">+{{arti.mainValText}}</span></li>
+
+      <!-- 副词条成长列表 -->
+      <div class="arti-row-subs">
         {{each arti.subStats sub}}
-        <li class="{{sub.isEffective ? 'great' : ''}}">
-          <span class="title">{{sub.shortName}}</span>
-          <span class="val">{{sub.formula}}</span>
-        </li>
+        <div class="sub-item {{sub.isEffective ? 'sub-effective' : ''}}">
+          <span class="sub-key">{{sub.shortName}}</span>
+          <span class="sub-formula">{{sub.formula}}</span>
+          {{if sub.hitCount > 1}}
+          <span class="sub-hits">({{sub.hitCount}}次)</span>
+          {{/if}}
+        </div>
         {{/each}}
-      </ul>
-      <div class="arti-foot">
+      </div>
+
+      <!-- 有效词条统计 -->
+      <div class="arti-row-counts">
         <div class="eff-badge">{{arti.effectiveCount}}<span>有效</span></div>
         <div class="upg-count">{{arti.upgradeCount}}词条</div>
       </div>

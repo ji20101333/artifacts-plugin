@@ -1,4 +1,4 @@
-/* 圣遗物成长值面板样式 - 照搬 miao-plugin profile-detail.css */
+/* 圣遗物成长值面板样式 - v1.3.0 横向圣遗物排列 + miao-plugin 角色面板/武器 */
 
 .font-YS {
   font-family: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
@@ -125,31 +125,14 @@ body { width: 600px; }
 .i-recharge { background-position: -112px 0; }
 .i-dmg { background-position: -128px 0; }
 
-/* ====== 通用卡片样式 ====== */
-.cont {
-  border-radius: 10px;
-  background: url("../common/cont/card-bg.png") top left repeat-x;
-  background-size: auto 100%; margin: 5px 0; position: relative;
-  box-shadow: 0 0 1px 0 #ccc, 2px 2px 4px 0 rgba(50, 50, 50, 0.8);
-  overflow: hidden; color: #fff; font-size: 16px;
-}
-.cont-title {
-  background: rgba(0, 0, 0, 0.4); color: #d3bc8e;
-  padding: 10px 20px; text-align: left;
-}
-.cont-footer {
-  padding: 10px 15px; font-size: 12px;
-  background: rgba(0, 0, 0, 0.5); font-weight: normal;
+/* ====== 区段标题 ====== */
+.section-title {
+  font-size: 16px; color: #d3bc8e; padding: 8px 10px 5px;
+  text-shadow: 0 0 2px #000;
+  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
-/* ====== 圣遗物 & 武器区 (照搬 miao-plugin .artis) ====== */
-.profile-detail { margin-top: 10px; }
-
-.artis-growth-section { display: flex; flex-direction: column; }
-
-/* .artis 保留用于未来的圣遗物卡片布局 */
-
-/* 武器卡片 (照搬 miao-plugin .artis .weapon) */
+/* ====== 武器卡片 (照搬 miao-plugin .artis .weapon) ====== */
 .weapon-card {
   border-radius: 10px;
   background: url("../common/cont/card-bg.png") top left repeat-x;
@@ -170,24 +153,13 @@ body { width: 600px; }
 .weapon-card .head strong { font-size: 15px; display: block; margin-bottom: 3px; }
 .weapon-card .head > span { display: block; }
 .weapon-card span.info { font-size: 14px; margin-bottom: 8px; }
-
-.affix {
-  color: #000; padding: 0 7px; border-radius: 4px; font-size: 14px;
-  width: 40px; margin-right: 5px;
-}
-.star {
-  color: #ffe699; font-size: 13px; margin-right: 6px; text-shadow: 0 0 2px rgba(255, 200, 50, 0.6);
-}
-.affix {
-  color: #000; padding: 0 7px; border-radius: 4px; font-size: 14px;
-  width: 40px; margin-right: 5px;
-}
+.star { color: #ffe699; font-size: 13px; margin-right: 6px; text-shadow: 0 0 2px rgba(255, 200, 50, 0.6); }
+.affix { color: #000; padding: 0 7px; border-radius: 4px; font-size: 14px; width: 40px; margin-right: 5px; }
 .affix-1 { box-shadow: 0 0 4px 0 #a3a3a3 inset; background: #ebebebaa; }
 .affix-2 { box-shadow: 0 0 4px 0 #51b72fbd inset; background: #ddffdeaa; }
 .affix-3 { box-shadow: 0 0 4px 0 #396cdecf inset; background: #ddebffaa; }
 .affix-4 { box-shadow: 0 0 4px 0 #c539debf inset; background: #ffddf0aa; }
 .affix-5 { box-shadow: 0 0 4px 0 #deaf39 inset; background: #fff6dd; }
-
 .weapon-card .weapon-attr {
   font-size: 14px;
   text-shadow: 0 0 1px #000, 1px 1px 2px rgba(0, 0, 0, 0.7);
@@ -205,100 +177,6 @@ body { width: 600px; }
   height: 100px; padding: 6px 5px 7px 10px; color: #bbb;
   display: table-cell; vertical-align: middle;
 }
-
-/* ====== 圣遗物行 (照搬 miao-plugin .artis .item) ====== */
-.arti-item {
-  border-radius: 10px;
-  background: url("../common/cont/card-bg.png") top left repeat-x;
-  background-size: auto 100%; margin: 5px 0; position: relative;
-  box-shadow: 0 0 1px 0 #ccc, 2px 2px 4px 0 rgba(50, 50, 50, 0.8);
-  overflow: visible; width: 100%;
-}
-.arti-item.arti-row-empty { opacity: 0.45; overflow: hidden; }
-
-.arti-item .arti-icon {
-  width: 60px; height: 60px; position: absolute; left: 2px; top: 3px;
-}
-.arti-item .arti-icon span {
-  position: absolute; right: 2px; bottom: 0; margin-left: 5px;
-  background: rgba(0, 0, 0, 0.5); border-radius: 5px;
-  height: 18px; line-height: 18px; padding: 0 3px;
-  color: #fff; font-size: 12px; display: block;
-}
-.arti-item .arti-icon .img {
-  width: 50px; height: 50px; margin: 5px;
-  background-size: contain; background-repeat: no-repeat; background-position: center;
-}
-
-/* 圣遗物头部 (部件名称和圣遗物名称各占一行) */
-.arti-item .head {
-  position: relative;
-  border-radius: 10px 10px 0 0;
-  text-shadow: 0 0 1px #000, 1px 1px 2px rgba(0, 0, 0, 0.7);
-  padding: 12px 10px 5px 68px;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7), rgba(25, 25, 25, 0.3), rgba(25, 25, 25, 0), rgba(25, 25, 25, 0));
-}
-.arti-item.arti-row-empty .head {
-  padding: 12px 10px 8px 68px;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7), rgba(25, 25, 25, 0.3), rgba(25, 25, 25, 0), rgba(25, 25, 25, 0));
-  border-radius: 10px;
-}
-.arti-item .head strong {
-  font-size: 15px; display: block; white-space: nowrap; overflow: hidden;
-  color: #fff;
-}
-.arti-item .head .arti-pos {
-  font-size: 12px; color: #d3bc8e; display: block; margin-top: 2px;
-}
-.arti-item.arti-row-empty .head strong {
-  font-size: 14px; display: block; color: rgba(255,255,255,0.7);
-}
-.no-arti { font-size: 12px; color: rgba(255,255,255,0.35); display: block; margin-top: 2px; }
-
-/* 副词条列表 (照搬 miao-plugin .artis ul.detail) */
-.arti-item ul.detail { width: 100%; padding: 0; position: initial; display: table; backdrop-filter: blur(2px); }
-.arti-item ul.detail li {
-  padding: 0 3px; font-size: 14px; position: relative;
-  width: 100%; display: table-row; line-height: 26px; height: 26px; white-space: nowrap;
-}
-.arti-item ul.detail li:nth-child(even) { background: rgba(0, 0, 0, 0.4); }
-.arti-item ul.detail li:nth-child(odd) { background: rgba(50, 50, 50, 0.4); }
-.arti-item ul.detail li span { position: initial; display: table-cell; color: #fff; }
-.arti-item ul.detail li span.title { text-align: left; padding-left: 15px; font-size: 14px; }
-.arti-item ul.detail li span.val { text-align: right; padding-right: 10px; font-size: 14px; }
-.arti-item ul.detail li.great span.title { color: #ffe699; }
-
-.arti-main { color: #fff; padding: 6px 15px; }
-.arti-item ul.detail li.arti-main {
-  font-size: 16px; padding: 3px 3px; font-weight: bold;
-  background: rgba(25, 25, 25, 0.5);
-}
-.arti-item ul.detail li.arti-main .title { padding-left: 15px; }
-
-/* 圣遗物底部统计 */
-.arti-foot {
-  display: flex; justify-content: flex-end; align-items: center;
-  padding: 4px 15px 6px; background: rgba(0, 0, 0, 0.3);
-  border-radius: 0 0 10px 10px; gap: 10px;
-}
-.eff-badge { font-size: 16px; color: #ffe699; font-weight: bold; }
-.eff-badge span { font-size: 10px; font-weight: normal; color: rgba(255,255,255,0.45); margin-left: 2px; }
-.upg-count { font-size: 12px; color: rgba(255,255,255,0.5); }
-
-/* ====== 区段标题 ====== */
-.section-title {
-  font-size: 16px; color: #d3bc8e; padding: 8px 10px 5px;
-  text-shadow: 0 0 2px #000;
-  font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-}
-
-/* 底部 */
-.footer-notice {
-  font-size: 12px; text-align: right; color: #aaa;
-  margin-right: 15px; margin-top: 5px; margin-bottom: 10px;
-  text-shadow: 1px 1px 1px #000;
-}
-
 .weapon-desc {
   font-size: 12px; font-weight: normal; color: #fff; word-break: break-all;
 }
@@ -306,4 +184,64 @@ body { width: 600px; }
   color: #ffe699; display: inline-block; border-radius: 4px;
   font-size: 12px; height: 16px; line-height: 16px;
   background: rgba(0, 0, 0, 0.5); text-align: center; padding: 0 3px; margin: 0 2px;
+}
+
+/* ====== v1.3.0 圣遗物横向排列 ====== */
+.artis-growth-section {
+  margin: 5px 0;
+}
+.arti-row {
+  display: flex; align-items: center;
+  background: url("../common/cont/card-bg.png") top left repeat-x;
+  background-size: auto 100%;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  box-shadow: 0 0 1px 0 #ccc, 2px 2px 4px 0 rgba(50, 50, 50, 0.8);
+  padding: 8px 10px; gap: 10px; min-height: 64px;
+}
+.arti-row.empty { opacity: 0.45; }
+
+/* 圣遗物图标 */
+.arti-row-icon {
+  flex-shrink: 0; width: 60px; height: 60px; position: relative;
+}
+.arti-row-icon .img {
+  width: 50px; height: 50px; margin: 5px;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+}
+.arti-row-icon .level {
+  position: absolute; right: 2px; bottom: 2px;
+  background: rgba(0, 0, 0, 0.5); border-radius: 5px;
+  height: 18px; line-height: 18px; padding: 0 3px;
+  color: #fff; font-size: 12px; display: block;
+}
+
+/* 主信息区 */
+.arti-row-main { flex: 1; min-width: 0; }
+.arti-pos-label { font-size: 14px; color: #fff; font-weight: bold; margin-bottom: 2px; }
+.arti-main-stat { font-size: 13px; color: #ffe699; }
+.arti-main-stat .main-val { color: #ffd780; }
+.no-arti { font-size: 12px; color: rgba(255,255,255,0.35); }
+
+/* 副词条成长 (横向紧凑排列) */
+.arti-row-subs { flex: 1.5; min-width: 0; }
+.sub-item { font-size: 12px; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-key { color: rgba(255,255,255,0.55); margin-right: 4px; }
+.sub-formula { color: #a0d6ff; }
+.sub-hits { color: rgba(255,255,255,0.35); font-size: 10px; margin-left: 2px; }
+.sub-item.sub-effective .sub-key { color: #ffe699; }
+
+/* 有效词条统计 */
+.arti-row-counts {
+  flex-shrink: 0; text-align: center; min-width: 45px;
+}
+.eff-badge { font-size: 18px; color: #ffe699; font-weight: bold; line-height: 1.2; }
+.eff-badge span { display: block; font-size: 9px; font-weight: normal; color: rgba(255,255,255,0.45); }
+.upg-count { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+/* 底部 */
+.footer-notice {
+  font-size: 12px; text-align: right; color: #aaa;
+  margin-right: 15px; margin-top: 5px; margin-bottom: 10px;
+  text-shadow: 1px 1px 1px #000;
 }

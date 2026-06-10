@@ -691,6 +691,7 @@ async function processArtifacts (uid, charName) {
 
   // 角色基础值 (照搬 miao-plugin Attr.calc → setCharAttr)
   const charLevel = matchedAvatar.level || 1
+  const charCons = matchedAvatar.cons || 0
   const charPromote = calcPromoteLevel(charLevel)
   const charDetailAttr = loadCharDetailAttr(charName)
 
@@ -907,7 +908,7 @@ async function processArtifacts (uid, charName) {
 
   return {
     uid, charName, playerName: playerData.name || '',
-    charLevel, elem, charSplash, charSide,
+    charLevel, charCons, elem, charSplash, charSide,
     talents, talentMap, talentIcons,
     weaponInfo,
     charStats,
@@ -1054,13 +1055,19 @@ export class artifactInitPanel extends plugin {
       uid: result.uid,
       name: result.charName,
       level: result.charLevel,
+      cons: result.charCons,
       elem: result.elem,
       costumeSplash: result.charSplash,
       imgs,
       talent: talentData,
+      talentMap: result.talentMap,
+      talents: result.talents,
+      talentIcons: result.talentIcons,
       attr,
       charWeight,
+      charStats: result.charStats,
       weapon: weaponData,
+      weaponInfo: result.weaponInfo,
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats
     }
@@ -1082,7 +1089,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.8.2`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.0`
             }
           }
         }
