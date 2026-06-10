@@ -18,6 +18,7 @@ const _miaoPluginDir = path.resolve(_cwd, 'plugins/miao-plugin')
 
 // ---- 静态数据缓存 ----
 let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData, _usefulAttr
+let _avgRollValue = {}   // 每个属性词条的平均成长值 (展示量级)
 let _artiBuffs = {}     // artifact set buff configs from calc.js
 let _pieceToSet = {}    // artifact piece name → set name mapping
 let _charMeta = {}      // character data.json keyed by numeric ID
@@ -68,6 +69,19 @@ async function loadStaticData () {
     _attrIdMap = extraMod.attrIdMap
     _mainIdMap = extraMod.mainIdMap
     _attrMap = extraMod.attrMap
+
+    // 1.1 计算每个属性词条的平均成长值 (用于新词条数算法)
+    const rollSumByKey = {}, rollCountByKey = {}
+    for (const [, cfg] of Object.entries(_attrIdMap)) {
+      if (!cfg.key) continue
+      if (!rollSumByKey[cfg.key]) { rollSumByKey[cfg.key] = 0; rollCountByKey[cfg.key] = 0 }
+      rollSumByKey[cfg.key] += cfg.value
+      rollCountByKey[cfg.key]++
+    }
+    _avgRollValue = {}
+    for (const key of Object.keys(rollSumByKey)) {
+      _avgRollValue[key] = toDisplayValue(key, rollSumByKey[key] / rollCountByKey[key])
+    }
 
     // 2. 圣遗物名称映射
     const dataPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/data.json')
@@ -799,6 +813,15 @@ async function processArtifacts (uid, charName) {
   // ---- 圣遗物列表处理 + 累加词条到属性 ----
   const artisList = []
 
+  // 权重查找: 小词条(flat)映射到大词条(%)的权重
+  const getWeightKey = (key) => {
+    if (key === 'atkPlus') return 'atk'
+    if (key === 'hpPlus') return 'hp'
+    if (key === 'defPlus') return 'def'
+    return key
+  }
+  const currWeights = _usefulAttr[charName] || {}
+
   for (let pos = 1; pos <= 5; pos++) {
     const arti = artisData[pos]
     if (!arti || !arti.name) {
@@ -821,13 +844,20 @@ async function processArtifacts (uid, charName) {
       calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
     }
 
-    // 升级次数 & 有效词条数
-    const upgradeCount = Math.max(0, attrIds.length - 4)
-    const upgrades = attrIds.slice(4)
-    const effectiveCount = upgrades.filter(id => {
-      const cfg = _attrIdMap[id]
-      return cfg && effectiveStats.includes(cfg.key)
-    }).length
+    // ---- 新算法: 有效数 & 词条数 ----
+    // 有效数: 权重>0 的副词条种类数
+    const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
+    // 词条数: 权重>0 的副词条的最终展示值 / 该词条平均每次成长展示值 的总和
+    let upgradeCount = 0
+    for (const sh of subHistory) {
+      const weightKey = getWeightKey(sh.key)
+      if ((currWeights[weightKey] || 0) > 0) {
+        const avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
+        const displayTotal = toDisplayValue(sh.key, sh.totalValue)
+        upgradeCount += displayTotal / avgVal
+      }
+    }
+    upgradeCount = Math.round(upgradeCount * 10) / 10
 
     const img = findArtifactImage(name)
 
@@ -1004,7 +1034,10 @@ export class artifactInitPanel extends plugin {
     }
     // charWeight: miao-plugin 格式 {key: weight}
     // 照搬 miao-plugin ArtisMark.getMarkDetail → 直接从 usefulAttr 获取, 不通过 charStats 间接构建
+    // 伤害加成(dmg/phy)不是副词条, 不在面板显示权重
     const charWeight = { ...result.charWeights }
+    delete charWeight.dmg
+    delete charWeight.phy
 
     // 武器数据: miao-plugin 格式
     let weaponData = null
@@ -1052,7 +1085,10 @@ export class artifactInitPanel extends plugin {
           const formula = sh.growthSteps.length > 0
             ? initialText + '+' + growthTexts.join('+') + '=' + totalText
             : initialText
-          const isEffective = result.effectiveStats.split('、').includes(sh.key)
+          const weightKey = sh.key === 'atkPlus' ? 'atk' :
+                             sh.key === 'hpPlus' ? 'hp' :
+                             sh.key === 'defPlus' ? 'def' : sh.key
+          const isEffective = (result.charWeights[weightKey] || 0) > 0
           return {
             key: sh.key,
             shortName: subKeyShortName[sh.key] || sh.key,
@@ -1102,7 +1138,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.6`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.7`
             }
           }
         }
