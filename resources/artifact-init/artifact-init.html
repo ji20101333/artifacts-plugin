@@ -127,6 +127,7 @@
           <div class="arti-pos-label">{{arti.posName}}</div>
           <div class="arti-name">{{arti.name}}</div>
           <div class="arti-main-stat">{{arti.mainKeyName}} <span class="main-val">+{{arti.mainValText}}</span></div>
+          <div class="arti-counts-inline">{{arti.effectiveCount}}有效 · {{arti.upgradeCount}}词条</div>
         </div>
 
         <!-- 副词条成长列表 -->
@@ -140,12 +141,6 @@
             {{/if}}
           </div>
           {{/each}}
-        </div>
-
-        <!-- 有效词条统计 -->
-        <div class="arti-row-counts">
-          <div class="eff-badge">{{arti.effectiveCount}}<span>有效</span></div>
-          <div class="upg-count">{{arti.upgradeCount}}词条</div>
         </div>
       </div>
       {{/if}}
