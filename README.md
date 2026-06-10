@@ -32,13 +32,12 @@
 
 ## 安装
 
-1. 将本插件放入 Yunzai-Bot 的 `plugins/` 目录下
-2. 确保已安装 `miao-plugin` 和 `liangshi-calc` 插件（作为数据依赖）
+1. 确保已安装 `miao-plugin` 和 `liangshi-calc` 插件（作为数据依赖）
+2. 在 Yunzai-Bot 根目录下执行安装命令
 3. 重启 Bot
 
 ```bash
-cd plugins
-git clone https://gitee.com/ji20101333/artifacts-plugin.git artifacts-plugin
+git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/artifacts-plugin/
 ```
 
 ## 依赖
@@ -48,6 +47,10 @@ git clone https://gitee.com/ji20101333/artifacts-plugin.git artifacts-plugin
 - **TRSS-Yunzai**（Miao-Yunzai）：Bot 框架
 
 ## 版本历史
+
+### v1.0.1 (2026-06-11)
+
+- 修正安装指令为 `git clone --depth=1` 浅克隆方式
 
 ### v1.0.0 (2026-06-11)
 
