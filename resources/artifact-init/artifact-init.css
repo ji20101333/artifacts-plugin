@@ -272,7 +272,7 @@ body { width: 600px; }
 .no-arti { font-size: 12px; color: rgba(255,255,255,0.35); }
 
 /* 副词条成长 (横向紧凑排列) */
-.arti-row-subs { flex: 1.5; min-width: 0; }
+.arti-row-subs { flex: 1.5; min-width: 0; transform: translateX(-30px); }
 .sub-item { font-size: 12px; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sub-key { color: rgba(255,255,255,0.55); margin-right: 4px; }
 .sub-formula { color: #a0d6ff; }
