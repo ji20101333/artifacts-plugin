@@ -1180,7 +1180,8 @@ export class artifactInitPanel extends plugin {
       weaponInfo: result.weaponInfo,
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
-      summary: result.effectiveSummary
+      summary: result.effectiveSummary,
+      version: '1.10.1'
     }
 
     try {
@@ -1200,7 +1201,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.10.0`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.10.1`
             }
           }
         }
