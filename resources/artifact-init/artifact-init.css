@@ -185,6 +185,7 @@ body { width: 600px; }
   box-shadow: 0 0 1px 0 #ccc, 2px 2px 4px 0 rgba(50, 50, 50, 0.8);
   overflow: hidden; color: #fff; font-size: 14px;
   height: 270px; display: flex; flex-direction: column;
+  margin-top: 5px;
 }
 .summary-header {
   display: flex; justify-content: space-between; align-items: center;
