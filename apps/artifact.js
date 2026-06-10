@@ -99,7 +99,7 @@ async function loadStaticData () {
     const artiCalcPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/calc.js')
     if (fs.existsSync(artiCalcPath)) {
       const artiCalcMod = await import(pathToFileURL(artiCalcPath))
-      _artiBuffs = artiCalcMod.buffs || {}
+      _artiBuffs = artiCalcMod.default || artiCalcMod.buffs || {}
     } else {
       _artiBuffs = {}
     }
@@ -1082,7 +1082,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.8.1`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.8.2`
             }
           }
         }
