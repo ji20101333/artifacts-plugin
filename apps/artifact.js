@@ -542,7 +542,7 @@ function calcSubstatHistory (attrIds) {
     return {
       key, initialValue: initialVal,
       growthSteps, totalValue: g.total,
-      hitCount: g.entries.length
+      hitCount: growthSteps.length
     }
   })
 }
