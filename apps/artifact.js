@@ -59,6 +59,8 @@ async function loadStaticData () {
     }
 
     // 6. 加载武器数据 (按ID & 名称索引)
+    // 类型级 data.json (如 sword/data.json): 仅有 id/name/star — 用于获取武器列表
+    // 单个武器 data.json (如 sword/雾切之回光/data.json): 有完整的 attr/bonusKey/bonusData/affixData
     _weaponById = {}
     _weaponByName = {}
     const weaponDir = path.join(_miaoPluginDir, 'resources/meta-gs/weapon')
@@ -66,14 +68,39 @@ async function loadStaticData () {
       return fs.statSync(path.join(weaponDir, f)).isDirectory()
     })
     for (const wt of weaponTypes) {
-      const typeDataPath = path.join(weaponDir, wt, 'data.json')
-      if (fs.existsSync(typeDataPath)) {
-        const typeData = JSON.parse(fs.readFileSync(typeDataPath, 'utf-8'))
-        for (const [id, wData] of Object.entries(typeData)) {
-          if (wData.name) {
-            _weaponById[id] = { ...wData, _type: wt }
-            _weaponByName[wData.name] = { ...wData, _type: wt }
+      const typeDir = path.join(weaponDir, wt)
+      // 先读类型级汇总文件获取全量武器列表
+      const typeDataPath = path.join(typeDir, 'data.json')
+      const typeData = fs.existsSync(typeDataPath)
+        ? JSON.parse(fs.readFileSync(typeDataPath, 'utf-8'))
+        : {}
+      // 建立 name → typeLevelInfo 的快速查找
+      const typeInfoByName = {}
+      for (const [, wData] of Object.entries(typeData)) {
+        if (wData.name) typeInfoByName[wData.name] = wData
+      }
+      // 遍历子目录读取单个武器的详细数据
+      let entries = []
+      try { entries = fs.readdirSync(typeDir, { withFileTypes: true }) } catch (_) {}
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue
+        const detailPath = path.join(typeDir, entry.name, 'data.json')
+        if (!fs.existsSync(detailPath)) continue
+        try {
+          const detailData = JSON.parse(fs.readFileSync(detailPath, 'utf-8'))
+          if (detailData.name) {
+            const typeInfo = typeInfoByName[detailData.name] || {}
+            const merged = { ...typeInfo, ...detailData, _type: wt }
+            _weaponById[detailData.id] = merged
+            _weaponByName[detailData.name] = merged
           }
+        } catch (_) { /* 跳过解析失败的文件 */ }
+      }
+      // 补充仅存在于类型级但无详细数据的武器 (如 1-2 星武器)
+      for (const [id, wData] of Object.entries(typeData)) {
+        if (wData.name && !_weaponById[id]) {
+          _weaponById[id] = { ...wData, _type: wt }
+          _weaponByName[wData.name] = { ...wData, _type: wt }
         }
       }
     }
@@ -917,7 +944,7 @@ export class artifactInitPanel extends plugin {
             return {
               ...data,
               sys: { scale: 1.6, ...(data.sys || {}) },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.1`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.2`
             }
           }
         }

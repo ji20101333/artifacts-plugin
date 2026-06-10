@@ -72,7 +72,7 @@ export class artifactUpdate extends plugin {
         exec(
           'git log -5 --oneline --format="%s"',
           { cwd: _pluginDir },
-          (logErr, logStdout) => {
+          async (logErr, logStdout) => {
             let msg = '圣遗物成长值插件更新成功！\n'
             msg += `版本: ${oldVersion} → ${newVersion}`
 
