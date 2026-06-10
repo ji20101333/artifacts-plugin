@@ -1072,20 +1072,20 @@ export class artifactInitPanel extends plugin {
     // 构建模板数据 — 使用 miao-plugin 的数据格式
 
     // 天赋数据: miao-plugin 格式 {a: {level, original}, e: {...}, q: {...}}
-    // Mihomo API 返回含命座加成的等级, 需反推 original (照搬 miao-plugin CharTalent.mode='level')
+    // Mihomo API 返回不含命座加成的基础等级, 需叠加命座加成得到 level
     const talentData = {}
     const talentCons = result.talentCons || {}
     for (const [key, tName] of Object.entries(result.talentMap)) {
-      const level = result.talents[key] || 0
-      let original = level
-      // 命座天赋+3 (C3/C5 常见; 达达利亚 A+1, 丝柯克 E+1)
+      let original = result.talents[key] || 0
+      let level = original
+      // 命座天赋+3 (C3/C5 常见)
       const consUp = talentCons[key]
       if (consUp && result.charCons >= consUp) {
-        original -= 3
+        level += 3
       }
       // 特殊: 达达利亚 (id 10000033) 普攻+1, 丝柯克 (id 10000114) E+1
-      if (key === 'a' && result.charId === 10000033) original -= 1
-      if (key === 'e' && result.charId === 10000114) original -= 1
+      if (key === 'a' && result.charId === 10000033) level += 1
+      if (key === 'e' && result.charId === 10000114) level += 1
       talentData[key] = { level, original }
     }
 
