@@ -880,6 +880,7 @@ async function processArtifacts (uid, charName) {
   }
 
   // ---- 有效词条汇总 (用于右侧表格: 跨圣遗物聚合每类副词条词条数) ----
+  // 小词条按权重键合并到大词条 (如 atkPlus→atk)
   const summaryMap = {}
   const summaryOrder = []
   for (const arti of artisList) {
@@ -887,9 +888,9 @@ async function processArtifacts (uid, charName) {
     for (const sh of arti.subHistory) {
       const weightKey = getWeightKey(sh.key)
       if ((currWeights[weightKey] || 0) <= 0) continue
-      if (!summaryMap[sh.key]) {
-        summaryMap[sh.key] = { key: sh.key, count: 0 }
-        summaryOrder.push(sh.key)
+      if (!summaryMap[weightKey]) {
+        summaryMap[weightKey] = { key: weightKey, count: 0 }
+        summaryOrder.push(weightKey)
       }
       let displayTotal = toDisplayValue(sh.key, sh.totalValue)
       let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
@@ -903,14 +904,15 @@ async function processArtifacts (uid, charName) {
         displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
         avgVal = _avgRollValue.def || toDisplayValue('def', 1)
       }
-      summaryMap[sh.key].count += displayTotal / avgVal
+      summaryMap[weightKey].count += displayTotal / avgVal
     }
   }
-  // 按词条数降序
+  // 按词条数降序 — 小词条已合并到大词条, 使用中性名称
+  const summaryLabelMap = { atk: '攻击', hp: '生命', def: '防御' }
   const summaryItems = summaryOrder
     .map(key => ({
       key,
-      shortName: subKeyShortName[key] || key,
+      shortName: summaryLabelMap[key] || subKeyShortName[key] || key,
       count: Math.round(summaryMap[key].count * 100) / 100
     }))
     .sort((a, b) => b.count - a.count)
