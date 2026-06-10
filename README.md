@@ -76,5 +76,3 @@ git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/
 本插件为非商业项目，仅供学习交流使用。
 
 ---
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

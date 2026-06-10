@@ -387,7 +387,7 @@ export class artifactInitPanel extends plugin {
               defaultLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/default.html'),
               elemLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/elem.html'),
               sys: { scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.7`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.8`
             }
           }
         }
