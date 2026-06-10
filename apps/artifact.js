@@ -648,12 +648,14 @@ async function processArtifacts (uid, charName) {
     const affixText = weaponMeta.affixData?.text || ''
     const affixDatas = weaponMeta.affixData?.datas || {}
     const affix = weaponRaw.affix || 1
-    // 展开精炼数值 ($[0], $[1] 替换为对应精炼等级的值)
+    // 展开精炼数值 (照搬 miao-plugin Weapon.getAffixDesc: while 循环替换所有 $[N])
     let desc = affixText
-    if (affixDatas['0'] || affixDatas['1']) {
-      desc = affixText
-      if (affixDatas['0']) desc = desc.replace(/\$\[0\]/g, affixDatas['0'][affix - 1] || affixDatas['0'][0] || '')
-      if (affixDatas['1']) desc = desc.replace(/\$\[1\]/g, affixDatas['1'][affix - 1] || affixDatas['1'][0] || '')
+    const reg = /\$\[(\d)\]/g
+    let match
+    while ((match = reg.exec(desc)) !== null) {
+      const idx = match[1]
+      const value = affixDatas[idx]?.[affix - 1] || affixDatas[idx]?.[0] || ''
+      desc = desc.replaceAll(match[0], value)
     }
 
     // 武器星级文本
@@ -1089,7 +1091,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.1`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.2`
             }
           }
         }
