@@ -300,7 +300,8 @@ function getBase (ctx, key) {
 
 /**
  * 计算单条圣遗物词缀 (照搬 miao-plugin Attr.calcArtisAttr)
- * 注意: artifact stat value 已经在 calcSubstatHistory 中被预处理为十进制
+ * value 应为展示量级 (如 cpct: 3.9=3.9%, atk: 5.83=5.83%)
+ * 主词条 calcMainValue / 副词条 toDisplayValue 已统一转为展示量级
  */
 function calcArtisAttr (ctx, key, value, charElem) {
   if (!key) return
@@ -343,15 +344,16 @@ function calcMainValue (mainKey, level, star) {
   return attrCfg.value * (1.2 + 0.34 * level) * posEff * (starEff[star || 5] || 1)
 }
 
-// ---- 获取属性的标准化值 (十进制, 可与副词条累加) ----
-// 百分比属性: calcMainValue 返回展示量级 (46.62=46.6%), 需除以100转为十进制
-// 数值属性: 保持原值
-function getNormalizedValue (key, displayValue) {
+// ---- 将 attrIdMap 的十进制值转为展示量级 (照搬 miao-plugin ArtisAttr.getAttr) ----
+// attrIdMap 中的 value 为十进制 (如 cpct: 0.039 = 3.9%, atk: 0.0583 = 5.83%)
+// 百分比属性需 ×100 转为展示量级 (如 3.9, 5.83), 数值属性保持原值
+// 武器 bonusData / 圣遗物主词条 calcMainValue 已为展示量级, 无需转换
+function toDisplayValue (key, decimalValue) {
   const cfg = _attrMap[key]
   if (cfg?.format === 'pct') {
-    return displayValue / 100
+    return decimalValue * 100
   }
-  return displayValue
+  return decimalValue
 }
 
 // ---- 属性值格式化 ----
@@ -514,29 +516,43 @@ async function processArtifacts (uid, charName) {
   const weaponMeta = findWeaponData(weaponRaw.name)
   let weaponInfo = null
   if (weaponMeta && weaponRaw.name) {
-    const levelKey = String(weaponRaw.level || 1)
+    const wLevel = weaponRaw.level || 1
+    const wPromote = weaponRaw.promote || 0
+    // 突破等级key: 突破后等级为 20+, 40+, 50+, 60+, 70+, 80+ (照搬 miao-plugin)
+    const ascBoundaries = [20, 40, 50, 60, 70, 80]
+    const levelKey = (wPromote > 0 && ascBoundaries.includes(wLevel)) ? `${wLevel}+` : String(wLevel)
+
     const wAttr = weaponMeta.attr || {}
     // 基础攻击力 (在武器数据中键名为 'atk')
     const wBaseAtk = (wAttr.atk && wAttr.atk[levelKey]) ? wAttr.atk[levelKey] : 0
-    // 副词缀
+    // 副词缀 (bonusData 值为展示量级, 如 cpct: 22.05=22.05%, mastery: 165.38=165)
     const bonusKey = wAttr.bonusKey || ''
     const bonusVal = (wAttr.bonusData && wAttr.bonusData[levelKey]) ? wAttr.bonusData[levelKey] : 0
+
     // 精炼文本
     const affixText = weaponMeta.affixData?.text || ''
     const affixDatas = weaponMeta.affixData?.datas || {}
     const affix = weaponRaw.affix || 1
-    // 展开精炼数值
+    // 展开精炼数值 ($[0], $[1] 替换为对应精炼等级的值)
     let desc = affixText
-    if (affixDatas['0'] && affixDatas['1']) {
+    if (affixDatas['0'] || affixDatas['1']) {
       desc = affixText
-        .replace('$[0]', affixDatas['0'][affix - 1] || affixDatas['0'][0] || '')
-        .replace('$[1]', affixDatas['1'][affix - 1] || affixDatas['1'][0] || '')
+      if (affixDatas['0']) desc = desc.replace(/\$\[0\]/g, affixDatas['0'][affix - 1] || affixDatas['0'][0] || '')
+      if (affixDatas['1']) desc = desc.replace(/\$\[1\]/g, affixDatas['1'][affix - 1] || affixDatas['1'][0] || '')
     }
+
+    // 武器星级文本
+    const starText = '★'.repeat(weaponMeta.star || 5)
+
     weaponInfo = {
       name: weaponMeta.name,
-      level: weaponRaw.level || 1,
+      sName: weaponMeta.name,
+      level: wLevel,
+      promote: wPromote,
+      ascLevel: (wPromote > 0 && ascBoundaries.includes(wLevel)) ? `${wLevel}+` : String(wLevel),
       affix,
       star: weaponMeta.star || 5,
+      starText,
       img: getWeaponImage(weaponMeta),
       baseAtk: wBaseAtk,
       bonusKey,
@@ -633,13 +649,13 @@ async function processArtifacts (uid, charName) {
     const mainKey = _mainIdMap[mainId] || '未知'
     const mainVal = calcMainValue(mainKey, level, star)
 
-    // 主词条归一化后加入属性计算 (照搬 miao-plugin calcArtisAttr)
-    calcArtisAttr(attrCtx, mainKey, getNormalizedValue(mainKey, mainVal), elem)
+    // 主词条加入属性计算 (calcMainValue 已返回展示量级, 照搬 miao-plugin)
+    calcArtisAttr(attrCtx, mainKey, mainVal, elem)
 
-    // 副词条
+    // 副词条 (attrIdMap 为十进制, 需转为展示量级后加入属性计算)
     const subHistory = calcSubstatHistory(attrIds)
     for (const sh of subHistory) {
-      calcArtisAttr(attrCtx, sh.key, sh.totalValue, elem)
+      calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
     }
 
     // 升级次数 & 有效词条数
@@ -825,23 +841,25 @@ export class artifactInitPanel extends plugin {
       const weaponAttrs = { atkBase: formatComma(wi.baseAtk, 1) }
       const attrTitleMap = {}
       if (wi.bonusKey) {
-        // 根据属性类型选择格式化方式
+        // 根据属性类型选择格式化方式 (bonusVal 为展示量级)
         const isCommaKey = ['mastery'].includes(wi.bonusKey)
         weaponAttrs[wi.bonusKey] = isCommaKey
           ? formatComma(wi.bonusVal, 0)
           : formatPct(wi.bonusVal * 1, 1)
         attrTitleMap[wi.bonusKey] = wi.bonusKeyName
       }
-      // 转换精炼文本为 nobr 格式 (照搬 miao-plugin)
+      // 转换精炼文本为 nobr 格式 (照搬 miao-plugin: 数字不换行)
       const descHtml = wi.desc
         ? wi.desc.replace(/(\d+(?:\.\d+)?%?)/g, '<nobr>$1</nobr>')
         : ''
       weaponData = {
         name: wi.name,
-        sName: wi.name,
+        sName: wi.sName || wi.name,
         level: wi.level,
+        ascLevel: wi.ascLevel || String(wi.level),
         affix: wi.affix,
         star: wi.star,
+        starText: wi.starText || '',
         img: wi.img,
         attrs: weaponAttrs,
         attrTitleMap,
@@ -899,7 +917,7 @@ export class artifactInitPanel extends plugin {
             return {
               ...data,
               sys: { scale: 1.6, ...(data.sys || {}) },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.0`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.1`
             }
           }
         }

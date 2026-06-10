@@ -68,8 +68,9 @@
       <div class="head">
         <strong>{{weaponInfo.sName || weaponInfo.name}}</strong>
         <span class="info">
+          <span class="star">{{weaponInfo.starText}}</span>
           <span class="affix affix-{{weaponInfo.affix}}">精{{weaponInfo.affix}}</span>
-          Lv.{{weaponInfo.level}}
+          Lv.{{weaponInfo.ascLevel || weaponInfo.level}}
         </span>
         <div class="weapon-attr">
           <div><span>攻击</span> +{{weaponInfo.attrs.atkBase}}</div>
