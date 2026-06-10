@@ -46,24 +46,6 @@ git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/
 - **liangshi-calc**：提供角色有效词条定义
 - **TRSS-Yunzai**（Miao-Yunzai）：Bot 框架
 
-## 版本历史
-
-### v1.0.2 (2026-06-11)
-
-- 指令名称由 `#xx圣遗物初始值面板` 改为 `#xx圣遗物成长值面板`
-
-### v1.0.1 (2026-06-11)
-
-- 修正安装指令为 `git clone --depth=1` 浅克隆方式
-
-### v1.0.0 (2026-06-11)
-
-- 初始版本
-- 实现 `#xx圣遗物成长值面板` 指令
-- 实现 `#圣遗物成长值插件更新` 指令
-- 圣遗物一行一个展示，包含成长历史
-- 有效词条基于 liangshi-calc 角色对应关系
-
 ## 许可证
 
 本项目采用 MIT 许可证。
@@ -84,13 +66,6 @@ git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/
 以上项目均为 MIT 许可证，允许自由使用、复制、修改、合并、发布、分发、再许可和/或销售副本，但须保留原始版权声明和许可声明。
 
 本插件为非商业项目，仅供学习交流使用。
-
-## 参与贡献
-
-1. Fork 本仓库
-2. 新建 Feat_xxx 分支
-3. 提交代码
-4. 新建 Pull Request
 
 ---
 
