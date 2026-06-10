@@ -11,6 +11,7 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 // ---- 静态数据 ----
 // 这些从 miao-plugin 资源文件直接导入
@@ -54,15 +55,6 @@ async function loadStaticData () {
       logger.error('[artifacts-plugin] 加载静态数据失败:', e.message)
     }
   }
-}
-
-function pathToFileURL (p) {
-  if (process.platform === 'win32') {
-    p = p.replace(/\\/g, '/')
-    if (!/^[a-zA-Z]:/.test(p)) p = '/' + p
-    return 'file:///' + p
-  }
-  return 'file://' + p
 }
 
 // ---- 角色名解析 ----
@@ -387,7 +379,7 @@ export class artifactInitPanel extends plugin {
               defaultLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/default.html'),
               elemLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/elem.html'),
               sys: { scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.8`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.1.0`
             }
           }
         }

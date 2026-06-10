@@ -1,18 +1,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname)
-
-// Debug: normalize Windows path
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 const appDir = path.resolve(__dirname, 'apps')
 
-if (!fs.existsSync(appDir)) {
+let files = []
+try {
+  files = fs.readdirSync(appDir).filter(file => file.endsWith('.js'))
+} catch (e) {
   if (Bot?.logger) {
-    Bot.logger.warn('[artifacts-plugin] apps目录不存在')
+    Bot.logger.error('[artifacts-plugin] 读取apps目录失败:', e.message)
+  } else {
+    console.error('[artifacts-plugin] 读取apps目录失败:', e.message)
   }
 }
-
-const files = fs.readdirSync(appDir).filter(file => file.endsWith('.js'))
 
 let ret = []
 files.forEach(file => {
