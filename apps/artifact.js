@@ -845,19 +845,31 @@ async function processArtifacts (uid, charName) {
     }
 
     // ---- 新算法: 有效数 & 词条数 ----
-    // 有效数: 权重>0 的副词条种类数
+    // 有效数: 权重>0的副词条种类数 (无重复, 取值范围 0-4)
     const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
-    // 词条数: 权重>0 的副词条的最终展示值 / 该词条平均每次成长展示值 的总和
+    // 词条数: 权重>0的副词条的最终展示值 / 该词条平均每次成长展示值 的总和
+    // 小攻击/小防御/小生命: 先转为对应百分比 (除以角色基础属性) 再计算
     let upgradeCount = 0
     for (const sh of subHistory) {
       const weightKey = getWeightKey(sh.key)
       if ((currWeights[weightKey] || 0) > 0) {
-        const avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
-        const displayTotal = toDisplayValue(sh.key, sh.totalValue)
+        let displayTotal = toDisplayValue(sh.key, sh.totalValue)
+        let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
+        // 小攻击/小防御/小生命 → 等效大百分比 (乘以100对齐展示量级)
+        if (sh.key === 'atkPlus') {
+          displayTotal = displayTotal / baseAttr.atk * 100
+          avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
+        } else if (sh.key === 'hpPlus') {
+          displayTotal = displayTotal / baseAttr.hp * 100
+          avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
+        } else if (sh.key === 'defPlus') {
+          displayTotal = displayTotal / baseAttr.def * 100
+          avgVal = _avgRollValue.def || toDisplayValue('def', 1)
+        }
         upgradeCount += displayTotal / avgVal
       }
     }
-    upgradeCount = Math.round(upgradeCount * 10) / 10
+    upgradeCount = Math.round(upgradeCount * 100) / 100
 
     const img = findArtifactImage(name)
 
@@ -1138,7 +1150,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.7`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.8`
             }
           }
         }
