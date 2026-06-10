@@ -196,7 +196,7 @@ body { width: 600px; }
   font-weight: bold; color: #d3bc8e;
 }
 .summary-header-val {
-  font-weight: bold; font-size: 18px; color: #ffe699;
+  font-weight: bold; font-size: 24px; color: #ffe699;
 }
 .summary-row {
   display: flex; justify-content: space-between; align-items: center;
