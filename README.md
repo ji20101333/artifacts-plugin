@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![English](https://img.shields.io/badge/README-English-blue)](./README.en.md)
-[![Version](https://img.shields.io/badge/version-1.6.0-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.7.0-brightgreen)]()
 
 圣遗物成长值面板插件 - 基于 Miao-Yunzai（TRSS-Yunzai），展示角色圣遗物初始值及副词条成长历史。
 
@@ -32,9 +32,12 @@
 
 ### 2. 插件更新
 
-指令：`#圣遗物成长值插件更新`
+指令：`#圣遗物成长值插件更新` / `#圣遗物成长值插件强制更新`
 
-执行 `git pull` 更新插件自身，更新成功后自动重启 Bot（参考 miao-plugin 的 `#喵喵更新` 重启机制）。
+执行 `git pull` 更新插件自身，更新成功后自动重启 Bot。
+
+- **普通更新**：`git pull` 拉取最新代码，显示版本变化和最近更新内容
+- **强制更新**：`git fetch + git reset --hard origin/master` 强制同步远程仓库，丢弃本地修改
 
 仅 Bot 主人可用。
 

@@ -1,16 +1,18 @@
 /**
  * 圣遗物成长值插件更新指令
  *
- * 参考 miao-plugin 的 #喵喵更新 实现 (MIT License, Copyright (c) 2023 Yoimiya)
+ * 参考 b_updates-plugin 的更新机制实现
  */
 
 import plugin from '../../../lib/plugins/plugin.js'
-import { exec } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { Restart } from '../../other/restart.js'
 
-const _cwd = process.cwd()
-const _pluginDir = path.resolve(_cwd, 'plugins/artifacts-plugin')
+const _pluginDir = path.resolve(process.cwd(), 'plugins/artifacts-plugin')
+
+/** 插件版本号 */
+const PLUGIN_VERSION = '1.7.0'
 
 function getVersion () {
   try {
@@ -30,102 +32,118 @@ export class artifactUpdate extends plugin {
       event: 'message',
       priority: 10,
       rule: [
-        { reg: /^#圣遗物成长值插件更新$/, fnc: 'updatePlugin' }
-      ]
+        {
+          reg: /^#圣遗物成长值插件更新$/,
+          fnc: 'handleUpdate',
+          permission: 'master',
+        },
+        {
+          reg: /^#圣遗物成长值插件强制更新$/,
+          fnc: 'handleForceUpdate',
+          permission: 'master',
+        },
+      ],
     })
   }
 
-  async updatePlugin (e) {
-    const event = e || this.e
-
-    if (!event.isMaster) {
-      await event.reply('仅Bot主人可使用更新命令')
-      return true
-    }
-
-    const isForce = event.msg?.includes?.('强制') || false
-    const command = isForce
-      ? 'git checkout . && git pull'
-      : 'git pull'
+  /**
+   * 处理更新指令：拉取远程仓库最新代码
+   */
+  async handleUpdate () {
+    await this.reply('正在拉取更新...', false, { at: true })
 
     const oldVersion = getVersion()
 
-    await event.reply('正在执行圣遗物成长值插件更新操作，请稍等...')
+    try {
+      const ret = await Bot.exec('git pull', {
+        cwd: 'plugins/artifacts-plugin',
+      })
+
+      if (ret.error) {
+        logger.warn(`[artifacts-plugin] 更新失败: ${ret.stderr}`)
+        return await this.reply(
+          `更新失败: ${ret.stderr || ret.error.message}`,
+          false,
+          { at: true },
+        )
+      }
+
+      const stdout = ret.stdout || ''
+      if (/Already up|已经是最新|up to date/i.test(stdout)) {
+        return await this.reply('圣遗物成长值插件已是最新版本~', false, { at: true })
+      }
+
+      const newVersion = getVersion()
+      let msg = `圣遗物成长值插件更新成功！\n版本: ${oldVersion} → ${newVersion}`
+
+      // 获取最近更新内容
+      try {
+        const logRet = await Bot.exec(
+          'git log -5 --oneline --format="%s"',
+          { cwd: 'plugins/artifacts-plugin' },
+        )
+        if (!logRet.error && logRet.stdout) {
+          const lines = logRet.stdout.trim().split('\n').filter(Boolean)
+          if (lines.length > 0) {
+            msg += '\n\n最近更新内容:'
+            for (const line of lines.slice(0, 5)) {
+              if (!line.includes('Co-Authored-By')) {
+                msg += `\n  · ${line}`
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      msg += '\n\n即将重启Bot以应用更新...'
+      logger.mark(`[artifacts-plugin] 更新成功: ${stdout}`)
+      await this.reply(msg, false, { at: true })
+
+      new Restart(this.e).restart()
+      return true
+    } catch (err) {
+      logger.error(`[artifacts-plugin] 更新异常: ${err.message}`)
+      return await this.reply(`更新异常: ${err.message}`, false, { at: true })
+    }
+  }
+
+  /**
+   * 处理强制更新指令：强制同步远程仓库并重启
+   */
+  async handleForceUpdate () {
+    await this.reply('正在强制更新...', false, { at: true })
 
     try {
-      exec(command, { cwd: _pluginDir }, (error, stdout, stderr) => {
-        if (error) {
-          event.reply(
-            `圣遗物成长值插件更新失败！\n${error.message}\n请稍后重试。`
-          ).catch(() => {})
-          return
-        }
-
-        if (/(Already up[ -]to[ -]date|已经是最新的)/.test(stdout)) {
-          event.reply('目前已经是最新版圣遗物成长值插件了~').catch(() => {})
-          return
-        }
-
-        // 获取新版本号和更新日志
-        const newVersion = getVersion()
-
-        exec(
-          'git log -5 --oneline --format="%s"',
-          { cwd: _pluginDir },
-          async (logErr, logStdout) => {
-            let msg = '圣遗物成长值插件更新成功！\n'
-            msg += `版本: ${oldVersion} → ${newVersion}`
-
-            if (!logErr && logStdout) {
-              const lines = logStdout.trim().split('\n').filter(Boolean)
-              if (lines.length > 0) {
-                msg += '\n\n最近更新内容:'
-                for (const line of lines.slice(0, 5)) {
-                  // 过滤掉 Co-Authored-By 行
-                  if (!line.includes('Co-Authored-By')) {
-                    msg += `\n  · ${line}`
-                  }
-                }
-              }
-            }
-
-            msg += '\n\n✅ 插件更新已完成，正在重启Bot以应用更新...'
-
-            event.reply(msg).catch(() => {})
-
-            // 存储重启后发送的消息 (照搬 miao-plugin 机制)
-            try {
-              await redis.set('artifacts:restart-msg', JSON.stringify({
-                msg: '圣遗物成长值插件更新已完成，重启成功~',
-                qq: event.user_id || event.sender?.user_id || ''
-              }), { EX: 120 })
-            } catch (e) {
-              // redis 不可用时忽略
-            }
-
-            setTimeout(() => {
-              // 调用Yunzai内置重启 (pm2 restart 或 process.exit)
-              if (typeof Bot?.restart === 'function') {
-                Bot.restart()
-              } else if (process.argv[1]?.includes?.('pm2')) {
-                exec('npm run restart', (err) => {
-                  if (err && logger?.error) {
-                    logger.error(`[artifacts-plugin] 自动重启失败\n${err.stack}`)
-                  }
-                  process.exit()
-                })
-              } else {
-                process.exit()
-              }
-            }, 1500)
-          }
-        )
+      await Bot.exec('git fetch', {
+        cwd: 'plugins/artifacts-plugin',
       })
-    } catch (err) {
-      logger?.error?.('[artifacts-plugin] 更新执行异常:', err)
-      await event.reply('更新执行异常: ' + err.message)
-    }
 
-    return true
+      const ret = await Bot.exec('git reset --hard origin/master', {
+        cwd: 'plugins/artifacts-plugin',
+      })
+
+      if (ret.error) {
+        logger.warn(`[artifacts-plugin] 强制更新失败: ${ret.stderr}`)
+        return await this.reply(
+          `强制更新失败: ${ret.stderr || ret.error.message}`,
+          false,
+          { at: true },
+        )
+      }
+
+      const stdout = ret.stdout || ''
+      logger.mark(`[artifacts-plugin] 强制更新成功: ${stdout}`)
+      await this.reply(
+        '圣遗物成长值插件强制更新完成，即将重启Bot...',
+        false,
+        { at: true },
+      )
+
+      new Restart(this.e).restart()
+      return true
+    } catch (err) {
+      logger.error(`[artifacts-plugin] 强制更新异常: ${err.message}`)
+      return await this.reply(`强制更新异常: ${err.message}`, false, { at: true })
+    }
   }
 }
