@@ -21,7 +21,25 @@ let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData
 let _charMeta = {}      // character data.json keyed by numeric ID
 let _weaponById = {}    // weapon data keyed by numeric ID
 let _weaponByName = {}  // weapon data keyed by name
+let _weaponBuffs = {}   // weapon buff/passive configs from calc.js
 let _dataLoaded = false
+
+// ---- 武器 Buff 辅助函数 (照搬 miao-plugin resources/meta-gs/weapon/index.js) ----
+// step(start, _step): 生成 6 元素的精炼数组 [r1..r5 + 1]
+function step (start, _step = 0) {
+  if (!_step) { _step = start / 4 }
+  let ret = []
+  for (let idx = 0; idx <= 5; idx++) {
+    ret.push(start + _step * idx)
+  }
+  return ret
+}
+// staticStep(key, start, _step): 创建 isStatic 类型的 buff 条目
+function staticStep (key, start, _step) {
+  let refine = {}
+  refine[key] = step(start, _step)
+  return { title: `${key}提高[${key}]`, isStatic: true, refine }
+}
 
 async function loadStaticData () {
   if (_dataLoaded) return
@@ -103,6 +121,24 @@ async function loadStaticData () {
           _weaponByName[wData.name] = { ...wData, _type: wt }
         }
       }
+    }
+
+    // 7. 加载武器特效 Buff 配置 (照搬 miao-plugin resources/meta-gs/weapon/index.js)
+    // 每个武器类型的 calc.js 导出 function(step, staticStep) → { 武器名: buffConfig }
+    _weaponBuffs = {}
+    const weaponTypeList = ['sword', 'claymore', 'polearm', 'bow', 'catalyst']
+    for (const wt of weaponTypeList) {
+      try {
+        const calcPath = path.join(_miaoPluginDir, 'resources/meta-gs/weapon', wt, 'calc.js')
+        if (!fs.existsSync(calcPath)) continue
+        const calcMod = await import(pathToFileURL(calcPath))
+        if (calcMod.default && typeof calcMod.default === 'function') {
+          const typeBuffs = calcMod.default(step, staticStep)
+          if (typeBuffs && typeof typeBuffs === 'object') {
+            Object.assign(_weaponBuffs, typeBuffs)
+          }
+        }
+      } catch (_) { /* calc.js 加载失败则跳过该类型 */ }
     }
 
     _dataLoaded = true
@@ -662,10 +698,39 @@ async function processArtifacts (uid, charName) {
   addAttr(attrCtx, 'cdmg', 50, true)
 
   // 武器属性 (照搬 miao-plugin Attr.setWeaponAttr)
+  let weaponBuffNonStatic = []  // 收集非静态 buff 供第二遍计算
   if (weaponInfo) {
     addAttr(attrCtx, 'atkBase', weaponInfo.baseAtk)
     if (weaponInfo.bonusKey) {
       addAttr(attrCtx, weaponInfo.bonusKey, weaponInfo.bonusVal)
+    }
+
+    // 武器特效静态 Buff (照搬 miao-plugin Attr.setWeaponAttr → Meta.getMeta('gs','weapon'))
+    const wBuffs = _weaponBuffs[weaponInfo.name] || []
+    const wBuffsArr = Array.isArray(wBuffs) ? wBuffs : [wBuffs]
+    const affix = weaponInfo.affix || 1
+    for (const buff of wBuffsArr) {
+      if (!buff || typeof buff !== 'object') continue
+      // 收集非静态 buff 供后续计算
+      if (!buff.isStatic) {
+        weaponBuffNonStatic.push(buff)
+      }
+      // 静态 buff: isStatic=true 且有 refine
+      if (buff.isStatic && buff.refine) {
+        for (const [key, r] of Object.entries(buff.refine)) {
+          if (Array.isArray(r)) {
+            addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
+          }
+        }
+      }
+      // 简单的 refine (非 static/非 data 函数): 直接加入面板
+      if (!buff.isStatic && buff.refine && !buff.data) {
+        for (const [key, r] of Object.entries(buff.refine)) {
+          if (Array.isArray(r)) {
+            addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
+          }
+        }
+      }
     }
   }
 
@@ -711,6 +776,44 @@ async function processArtifacts (uid, charName) {
       subHistory, upgradeCount, effectiveCount,
       posName: posNames[pos] || `位置${pos}`
     })
+  }
+
+  // ---- 武器非静态 Buff 第二遍计算 (基于已累加的面板属性) ----
+  // 照搬 miao-plugin DmgBuffs.getWeaponBuffs 的数据函数求值逻辑
+  if (weaponBuffNonStatic.length > 0) {
+    const affix = weaponInfo?.affix || 1
+    // calc函数: 根据 AttrData 的 {base, pct, plus} 计算属性总值
+    const calcStat = (attr) => (attr.base || 0) * (1 + (attr.pct || 0) / 100) + (attr.plus || 0)
+    for (const buff of weaponBuffNonStatic) {
+      // 先处理简单的 refine (如 海渊终曲: atkPct 先加, 后续 data 函数可能依赖)
+      if (buff.refine) {
+        for (const [key, r] of Object.entries(buff.refine)) {
+          if (Array.isArray(r)) {
+            addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
+          }
+        }
+      }
+      // 再处理 data 函数 (如 磐岩结绿: atkPlus = calc(attr.hp) * 1.2% / 100)
+      if (buff.data && typeof buff.data === 'object') {
+        for (const [key, fn] of Object.entries(buff.data)) {
+          if (typeof fn === 'function') {
+            try {
+              const val = fn({
+                attr: attrCtx._attr,
+                calc: calcStat,
+                refine: affix - 1
+              })
+              if (val !== undefined && val !== null && !isNaN(val)) {
+                addAttr(attrCtx, key, val)
+              }
+            } catch (_) { /* 计算失败则跳过 */ }
+          } else if (typeof fn === 'number') {
+            // 固定数值 (如 降临之剑: atkPlus: 66)
+            addAttr(attrCtx, key, fn)
+          }
+        }
+      }
+    }
   }
 
   // ---- 构建角色面板数值 (照搬 miao-plugin ProfileDetail.render) ----
@@ -959,7 +1062,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.3`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.6.0`
             }
           }
         }
