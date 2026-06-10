@@ -698,7 +698,6 @@ async function processArtifacts (uid, charName) {
   addAttr(attrCtx, 'cdmg', 50, true)
 
   // 武器属性 (照搬 miao-plugin Attr.setWeaponAttr)
-  let weaponBuffNonStatic = []  // 收集非静态 buff 供第二遍计算
   if (weaponInfo) {
     addAttr(attrCtx, 'atkBase', weaponInfo.baseAtk)
     if (weaponInfo.bonusKey) {
@@ -706,25 +705,13 @@ async function processArtifacts (uid, charName) {
     }
 
     // 武器特效静态 Buff (照搬 miao-plugin Attr.setWeaponAttr → Meta.getMeta('gs','weapon'))
+    // 仅处理 isStatic=true 的 buff, 不处理非静态 buff (data函数/条件型)
     const wBuffs = _weaponBuffs[weaponInfo.name] || []
     const wBuffsArr = Array.isArray(wBuffs) ? wBuffs : [wBuffs]
     const affix = weaponInfo.affix || 1
     for (const buff of wBuffsArr) {
-      if (!buff || typeof buff !== 'object') continue
-      // 收集非静态 buff 供后续计算
-      if (!buff.isStatic) {
-        weaponBuffNonStatic.push(buff)
-      }
-      // 静态 buff: isStatic=true 且有 refine
-      if (buff.isStatic && buff.refine) {
-        for (const [key, r] of Object.entries(buff.refine)) {
-          if (Array.isArray(r)) {
-            addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
-          }
-        }
-      }
-      // 简单的 refine (非 static/非 data 函数): 直接加入面板
-      if (!buff.isStatic && buff.refine && !buff.data) {
+      if (!buff || typeof buff !== 'object' || !buff.isStatic) continue
+      if (buff.refine) {
         for (const [key, r] of Object.entries(buff.refine)) {
           if (Array.isArray(r)) {
             addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
@@ -776,44 +763,6 @@ async function processArtifacts (uid, charName) {
       subHistory, upgradeCount, effectiveCount,
       posName: posNames[pos] || `位置${pos}`
     })
-  }
-
-  // ---- 武器非静态 Buff 第二遍计算 (基于已累加的面板属性) ----
-  // 照搬 miao-plugin DmgBuffs.getWeaponBuffs 的数据函数求值逻辑
-  if (weaponBuffNonStatic.length > 0) {
-    const affix = weaponInfo?.affix || 1
-    // calc函数: 根据 AttrData 的 {base, pct, plus} 计算属性总值
-    const calcStat = (attr) => (attr.base || 0) * (1 + (attr.pct || 0) / 100) + (attr.plus || 0)
-    for (const buff of weaponBuffNonStatic) {
-      // 先处理简单的 refine (如 海渊终曲: atkPct 先加, 后续 data 函数可能依赖)
-      if (buff.refine) {
-        for (const [key, r] of Object.entries(buff.refine)) {
-          if (Array.isArray(r)) {
-            addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
-          }
-        }
-      }
-      // 再处理 data 函数 (如 磐岩结绿: atkPlus = calc(attr.hp) * 1.2% / 100)
-      if (buff.data && typeof buff.data === 'object') {
-        for (const [key, fn] of Object.entries(buff.data)) {
-          if (typeof fn === 'function') {
-            try {
-              const val = fn({
-                attr: attrCtx._attr,
-                calc: calcStat,
-                refine: affix - 1
-              })
-              if (val !== undefined && val !== null && !isNaN(val)) {
-                addAttr(attrCtx, key, val)
-              }
-            } catch (_) { /* 计算失败则跳过 */ }
-          } else if (typeof fn === 'number') {
-            // 固定数值 (如 降临之剑: atkPlus: 66)
-            addAttr(attrCtx, key, fn)
-          }
-        }
-      }
-    }
   }
 
   // ---- 构建角色面板数值 (照搬 miao-plugin ProfileDetail.render) ----
