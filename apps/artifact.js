@@ -302,7 +302,7 @@ export class artifactInitPanel extends plugin {
       name: '圣遗物成长值面板',
       dsc: '展示角色圣遗物初始值及副词条成长历史',
       event: 'message',
-      priority: 300,
+      priority: 10,
       rule: [
         { reg: /^#([^#\s]+)圣遗物成长值面板$/, fnc: 'showArtifactInitPanel' }
       ]
@@ -387,7 +387,7 @@ export class artifactInitPanel extends plugin {
               defaultLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/default.html'),
               elemLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/elem.html'),
               sys: { scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.4`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.5`
             }
           }
         }
