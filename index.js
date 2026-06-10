@@ -38,7 +38,7 @@ for (let i in files) {
 export { apps }
 
 if (Bot?.logger?.info) {
-  Bot.logger.info('[artifacts-plugin] 圣遗物初始值面板插件初始化~')
+  Bot.logger.info('[artifacts-plugin] 圣遗物成长值面板插件初始化~')
 } else {
-  console.log('[artifacts-plugin] 圣遗物初始值面板插件初始化~')
+  console.log('[artifacts-plugin] 圣遗物成长值面板插件初始化~')
 }

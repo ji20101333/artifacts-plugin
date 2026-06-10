@@ -1,5 +1,5 @@
 /**
- * 圣遗物初始值面板插件
+ * 圣遗物成长值面板插件
  *
  * 基于以下项目:
  * - miao-plugin: 面板渲染、圣遗物数据处理 (MIT License, Copyright (c) 2023 Yoimiya)
@@ -299,25 +299,25 @@ async function processArtifacts (uid, charName) {
 export class artifactInitPanel extends plugin {
   constructor () {
     super({
-      name: '圣遗物初始值面板',
+      name: '圣遗物成长值面板',
       dsc: '展示角色圣遗物初始值及副词条成长历史',
       event: 'message',
       priority: 300,
       rule: [
-        { reg: /^#([^#\s]+)圣遗物初始值面板$/, fnc: 'showArtifactInitPanel' }
+        { reg: /^#([^#\s]+)圣遗物成长值面板$/, fnc: 'showArtifactInitPanel' }
       ]
     })
   }
 
   async showArtifactInitPanel () {
-    const match = this.e.msg?.match?.(/^#([^#\s]+)圣遗物初始值面板$/)
+    const match = this.e.msg?.match?.(/^#([^#\s]+)圣遗物成长值面板$/)
     if (!match) return false
     const nameInput = match[1]
 
     // 1. 解析角色名
     const charName = await resolveCharacter(nameInput)
     if (!charName) {
-      await this.e.reply('无法识别角色名，请检查输入格式，示例：#甘雨圣遗物初始值面板')
+      await this.e.reply('无法识别角色名，请检查输入格式，示例：#甘雨圣遗物成长值面板')
       return true
     }
 
@@ -387,7 +387,7 @@ export class artifactInitPanel extends plugin {
               defaultLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/default.html'),
               elemLayout: path.resolve(_miaoPluginDir, 'resources/common/layout/elem.html'),
               sys: { scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.1`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.0.2`
             }
           }
         }

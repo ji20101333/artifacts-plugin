@@ -6,9 +6,9 @@ Artifact Initial Value Panel Plugin for Miao-Yunzai (TRSS-Yunzai). Displays char
 
 ### 1. Artifact Initial Value Panel
 
-Command: `#<character>圣遗物初始值面板`
+Command: `#<character>圣遗物成长值面板`
 
-Example: `#Ganyu圣遗物初始值面板`
+Example: `#Ganyu圣遗物成长值面板`
 
 Returns an image showing each artifact's initial values and growth history:
 - Artifact icon + level
