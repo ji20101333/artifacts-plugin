@@ -950,17 +950,14 @@ export class artifactInitPanel extends plugin {
         {
           retType: 'base64',
           beforeRender ({ data }) {
-            // 照搬 miao-plugin Render.js: 设置 _miao_path 指向 miao-plugin 资源
-            // runtime 已预设 _miao_path / _res_path, 此处确保 layout 路径正确
-            const miaoResPath = data._miao_path || data.pluResPath || data._res_path || ''
-            const layoutPath = miaoResPath
-              ? miaoResPath.replace(/artifacts-plugin/g, 'miao-plugin') + 'common/layout/'
-              : ''
+            // 照搬 miao-plugin Render.js: 设置 elemLayout
+            // runtime 已预设 _miao_path(相对URL) / defaultLayout(绝对路径), 但未设 elemLayout
+            // elemLayout 需要绝对文件系统路径, 不能用相对 URL (否则模板引擎从 CWD 解析)
+            const layoutPath = path.join(_miaoPluginDir, 'resources/common/layout/')
             return {
               ...data,
-              _miao_path: data._miao_path || miaoResPath,
-              _layout_path: layoutPath || data._layout_path || '',
-              elemLayout: layoutPath ? layoutPath + 'elem.html' : (data.elemLayout || ''),
+              elemLayout: layoutPath + 'elem.html',
+              _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
               copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.5.3`
             }
