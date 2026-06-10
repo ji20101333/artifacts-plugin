@@ -40,8 +40,39 @@ for (let i in files) {
 
 export { apps }
 
-if (Bot?.logger?.info) {
-  Bot.logger.info('[artifacts-plugin] 圣遗物成长值面板插件初始化~')
-} else {
-  console.log('[artifacts-plugin] 圣遗物成长值面板插件初始化~')
+// ---- 插件初始化 + 重启消息检测 (照搬 miao-plugin tools/index.js) ----
+async function init () {
+  if (Bot?.logger?.info) {
+    Bot.logger.info('[artifacts-plugin] 圣遗物成长值面板插件初始化~')
+  } else {
+    console.log('[artifacts-plugin] 圣遗物成长值面板插件初始化~')
+  }
+
+  // 检查是否有重启后需要发送的消息
+  try {
+    if (typeof redis !== 'undefined' && redis?.get) {
+      const msgStr = await redis.get('artifacts:restart-msg')
+      if (msgStr) {
+        const data = JSON.parse(msgStr)
+        if (data.qq && data.msg) {
+          // 发送私聊消息告知用户更新完成
+          try {
+            const commonMod = await import('../../../lib/common/common.js')
+            if (commonMod?.default?.relpyPrivate) {
+              await commonMod.default.relpyPrivate(data.qq, data.msg)
+            } else if (Bot?.sendPrivateMsg) {
+              await Bot.sendPrivateMsg(data.qq, data.msg)
+            }
+          } catch (e) {
+            // 发送失败静默处理
+          }
+        }
+        await redis.del('artifacts:restart-msg')
+      }
+    }
+  } catch (e) {
+    // redis 不可用时忽略
+  }
 }
+
+init()

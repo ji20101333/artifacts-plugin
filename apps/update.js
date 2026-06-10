@@ -90,21 +90,33 @@ export class artifactUpdate extends plugin {
             }
 
             msg += '\n\n✅ 插件更新已完成，正在重启Bot以应用更新...'
-            msg += '\n重启完成后即可使用新版本功能~'
 
             event.reply(msg).catch(() => {})
 
+            // 存储重启后发送的消息 (照搬 miao-plugin 机制)
+            try {
+              await redis.set('artifacts:restart-msg', JSON.stringify({
+                msg: '圣遗物成长值插件更新已完成，重启成功~',
+                qq: event.user_id || event.sender?.user_id || ''
+              }), { EX: 120 })
+            } catch (e) {
+              // redis 不可用时忽略
+            }
+
             setTimeout(() => {
-              let restartCmd = 'npm run start'
-              if (process.argv[1]?.includes?.('pm2')) {
-                restartCmd = 'npm run restart'
-              }
-              exec(restartCmd, (err) => {
-                if (err && logger?.error) {
-                  logger.error(`[artifacts-plugin] 自动重启失败\n${err.stack}`)
-                }
+              // 调用Yunzai内置重启 (pm2 restart 或 process.exit)
+              if (typeof Bot?.restart === 'function') {
+                Bot.restart()
+              } else if (process.argv[1]?.includes?.('pm2')) {
+                exec('npm run restart', (err) => {
+                  if (err && logger?.error) {
+                    logger.error(`[artifacts-plugin] 自动重启失败\n${err.stack}`)
+                  }
+                  process.exit()
+                })
+              } else {
                 process.exit()
-              })
+              }
             }, 1500)
           }
         )
