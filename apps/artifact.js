@@ -911,6 +911,7 @@ async function processArtifacts (uid, charName) {
     talents, talentMap, talentIcons,
     weaponInfo,
     charStats,
+    charWeights,
     artisList,
     effectiveStats: effectiveStats.join('、')
   }
@@ -988,10 +989,8 @@ export class artifactInitPanel extends plugin {
       attr[stat.key + 'Plus'] = stat.plus
     }
     // charWeight: miao-plugin 格式 {key: weight}
-    const charWeight = {}
-    for (const stat of result.charStats) {
-      if (stat.weight > 0) charWeight[stat.key] = stat.weight
-    }
+    // 照搬 miao-plugin ArtisMark.getMarkDetail → 直接从 usefulAttr 获取, 不通过 charStats 间接构建
+    const charWeight = { ...result.charWeights }
 
     // 武器数据: miao-plugin 格式
     let weaponData = null
@@ -1083,7 +1082,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.8.0`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.8.1`
             }
           }
         }
