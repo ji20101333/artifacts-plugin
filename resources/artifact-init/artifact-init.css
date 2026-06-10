@@ -253,11 +253,11 @@ body { width: 600px; }
 .weapon-card .weapon-attr div { width: 50%; }
 .weapon-card .weapon-attr div span { color: #ffe699; font-weight: bold; }
 .weapon-card .weapon-desc-cont {
-  height: 134px; border-radius: 0 0 10px 10px;
+  height: 160px; border-radius: 0 0 10px 10px;
   background: rgba(0, 0, 0, 0.4); overflow: hidden; text-overflow: ellipsis;
 }
 .weapon-card .weapon-desc {
-  height: 134px; padding: 6px 5px 7px 10px; color: #bbb;
+  height: 160px; padding: 6px 5px 7px 10px; color: #bbb;
   display: table-cell; vertical-align: middle;
 }
 .weapon-desc {
