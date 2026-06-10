@@ -17,7 +17,7 @@ const _cwd = process.cwd()
 const _miaoPluginDir = path.resolve(_cwd, 'plugins/miao-plugin')
 
 // ---- 静态数据缓存 ----
-let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData
+let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData, _usefulAttr
 let _charMeta = {}      // character data.json keyed by numeric ID
 let _weaponById = {}    // weapon data keyed by numeric ID
 let _weaponByName = {}  // weapon data keyed by name
@@ -69,14 +69,23 @@ async function loadStaticData () {
     )
     _mainAttrData = mainAttrMod.mainAttrData
 
-    // 5. 加载角色元数据 (按数字ID索引)
+    // 5. 加载圣遗物评分权重 (照搬 miao-plugin artis-mark.js → usefulAttr)
+    const artisMarkPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/artis-mark.js')
+    if (fs.existsSync(artisMarkPath)) {
+      const artisMarkMod = await import(pathToFileURL(artisMarkPath))
+      _usefulAttr = artisMarkMod.usefulAttr || {}
+    } else {
+      _usefulAttr = {}
+    }
+
+    // 6. 加载角色元数据 (按数字ID索引)
     _charMeta = {}
     const charMetaPath = path.join(_miaoPluginDir, 'resources/meta-gs/character/data.json')
     if (fs.existsSync(charMetaPath)) {
       _charMeta = JSON.parse(fs.readFileSync(charMetaPath, 'utf-8'))
     }
 
-    // 6. 加载武器数据 (按ID & 名称索引)
+    // 7. 加载武器数据 (按ID & 名称索引)
     // 类型级 data.json (如 sword/data.json): 仅有 id/name/star — 用于获取武器列表
     // 单个武器 data.json (如 sword/雾切之回光/data.json): 有完整的 attr/bonusKey/bonusData/affixData
     _weaponById = {}
@@ -123,7 +132,7 @@ async function loadStaticData () {
       }
     }
 
-    // 7. 加载武器特效 Buff 配置 (照搬 miao-plugin resources/meta-gs/weapon/index.js)
+    // 8. 加载武器特效 Buff 配置 (照搬 miao-plugin resources/meta-gs/weapon/index.js)
     // 每个武器类型的 calc.js 导出 function(step, staticStep) → { 武器名: buffConfig }
     _weaponBuffs = {}
     const weaponTypeList = ['sword', 'claymore', 'polearm', 'bow', 'catalyst']
@@ -766,8 +775,9 @@ async function processArtifacts (uid, charName) {
   }
 
   // ---- 构建角色面板数值 (照搬 miao-plugin ProfileDetail.render) ----
-  const weightMap = {}
-  for (const es of effectiveStats) { weightMap[es] = 100 }
+  // 权重来自 miao-plugin artis-mark.js → usefulAttr (默认: atk 75, cpct/cdmg/dmg/phy 100)
+  const charWeights = _usefulAttr[charName]
+    || { atk: 75, cpct: 100, cdmg: 100, dmg: 100, phy: 100 }
 
   const charStats = []
   // 固定值属性 (hp, atk, def): 使用 Format.comma
@@ -781,8 +791,8 @@ async function processArtifacts (uid, charName) {
       base: formatComma(base, key === 'hp' ? 0 : 1),
       plus: '+' + formatComma(plus, key === 'hp' ? 0 : 1),
       total: formatComma(total, key === 'hp' ? 0 : 1),
-      weight: weightMap[key] || 0,
-      isEffective: !!weightMap[key], showWeight: false
+      weight: charWeights[key] || 0,
+      isEffective: !!charWeights[key], showWeight: false
     })
   }
   // 元素精通: 也是固定值
@@ -796,14 +806,20 @@ async function processArtifacts (uid, charName) {
       base: formatComma(base, 0),
       plus: '+' + formatComma(plus, 0),
       total: formatComma(total, 0),
-      weight: weightMap[key] || 0,
-      isEffective: !!weightMap[key], showWeight: true
+      weight: charWeights[key] || 0,
+      isEffective: !!charWeights[key], showWeight: true
     })
   }
   // 百分比属性 (cpct, cdmg, recharge, dmg): 使用 Format.pct
   for (const key of ['cpct', 'cdmg', 'recharge', 'dmg']) {
-    const total = getAttr(attrCtx, key)
-    const base = getBase(attrCtx, key)
+    let dataKey = key
+    if (key === 'dmg') {
+      const phyVal = getAttr(attrCtx, 'phy')
+      const dmgVal = getAttr(attrCtx, 'dmg')
+      if (phyVal > dmgVal) dataKey = 'phy'
+    }
+    const total = getAttr(attrCtx, dataKey)
+    const base = getBase(attrCtx, dataKey)
     const plus = total - base
     charStats.push({
       key,
@@ -811,15 +827,15 @@ async function processArtifacts (uid, charName) {
       base: formatPct(base),
       plus: (plus >= 0 ? '+' : '') + formatPct(plus),
       total: formatPct(total),
-      weight: weightMap[key] || 0,
-      isEffective: !!weightMap[key], showWeight: true
+      weight: charWeights[key] || 0,
+      isEffective: !!charWeights[key], showWeight: true
     })
   }
   // 检查元素/物理伤害加成 (照搬 miao-plugin — 如果 elem dmg > dmg 则显示)
   for (const dk of _elemKeys) {
     const dkVal = getAttr(attrCtx, dk)
     const dmgVal = getAttr(attrCtx, 'dmg')
-    if (dkVal > dmgVal && dkVal > 0) {
+    if (dkVal > 0 && dkVal > dmgVal) {
       const base = getBase(attrCtx, dk)
       const plus = dkVal - base
       charStats.push({
@@ -827,7 +843,7 @@ async function processArtifacts (uid, charName) {
         base: formatPct(base),
         plus: (plus >= 0 ? '+' : '') + formatPct(plus),
         total: formatPct(dkVal),
-        weight: weightMap[dk] || 0,
+        weight: charWeights[dk] || 0,
         isEffective: false, showWeight: false
       })
     }
@@ -1011,7 +1027,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.6.0`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.7.1`
             }
           }
         }
