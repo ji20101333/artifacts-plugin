@@ -854,13 +854,13 @@ async function processArtifacts (uid, charName) {
         let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
         // 小攻击/小防御/小生命 → 等效大百分比 (乘以100对齐展示量级)
         if (sh.key === 'atkPlus') {
-          displayTotal = displayTotal / baseAttr.atk * 100
+          displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
           avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
         } else if (sh.key === 'hpPlus') {
-          displayTotal = displayTotal / baseAttr.hp * 100
+          displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
           avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
         } else if (sh.key === 'defPlus') {
-          displayTotal = displayTotal / baseAttr.def * 100
+          displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
           avgVal = _avgRollValue.def || toDisplayValue('def', 1)
         }
         upgradeCount += displayTotal / avgVal
@@ -894,13 +894,13 @@ async function processArtifacts (uid, charName) {
       let displayTotal = toDisplayValue(sh.key, sh.totalValue)
       let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
       if (sh.key === 'atkPlus') {
-        displayTotal = displayTotal / baseAttr.atk * 100
+        displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
         avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
       } else if (sh.key === 'hpPlus') {
-        displayTotal = displayTotal / baseAttr.hp * 100
+        displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
         avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
       } else if (sh.key === 'defPlus') {
-        displayTotal = displayTotal / baseAttr.def * 100
+        displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
         avgVal = _avgRollValue.def || toDisplayValue('def', 1)
       }
       summaryMap[sh.key].count += displayTotal / avgVal
