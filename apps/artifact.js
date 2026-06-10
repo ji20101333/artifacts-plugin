@@ -1089,7 +1089,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.0`
+              copyright: `Created By Miao-Plugin & liangshi-calc · artifacts-plugin v1.9.1`
             }
           }
         }

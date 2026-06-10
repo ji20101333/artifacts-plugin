@@ -1,4 +1,4 @@
-/* 圣遗物成长值面板样式 - v1.3.0 横向圣遗物排列 + miao-plugin 角色面板/武器 */
+/* 圣遗物成长值面板样式 - 照搬 miao-plugin profile-detail.css */
 
 .font-YS {
   font-family: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
@@ -132,7 +132,10 @@ body { width: 600px; }
   font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
-/* ====== 武器卡片 (照搬 miao-plugin .artis .weapon) ====== */
+/* ====== 圣遗物 & 武器区 (照搬 miao-plugin) ====== */
+.profile-detail { margin-top: 10px; }
+
+/* 武器卡片 (照搬 miao-plugin .artis .weapon) */
 .weapon-card {
   border-radius: 10px;
   background: url("../common/cont/card-bg.png") top left repeat-x;
@@ -153,13 +156,20 @@ body { width: 600px; }
 .weapon-card .head strong { font-size: 15px; display: block; margin-bottom: 3px; }
 .weapon-card .head > span { display: block; }
 .weapon-card span.info { font-size: 14px; margin-bottom: 8px; }
-.star { color: #ffe699; font-size: 13px; margin-right: 6px; text-shadow: 0 0 2px rgba(255, 200, 50, 0.6); }
-.affix { color: #000; padding: 0 7px; border-radius: 4px; font-size: 14px; width: 40px; margin-right: 5px; }
+
+.star {
+  color: #ffe699; font-size: 13px; margin-right: 6px; text-shadow: 0 0 2px rgba(255, 200, 50, 0.6);
+}
+.affix {
+  color: #000; padding: 0 7px; border-radius: 4px; font-size: 14px;
+  width: 40px; margin-right: 5px;
+}
 .affix-1 { box-shadow: 0 0 4px 0 #a3a3a3 inset; background: #ebebebaa; }
 .affix-2 { box-shadow: 0 0 4px 0 #51b72fbd inset; background: #ddffdeaa; }
 .affix-3 { box-shadow: 0 0 4px 0 #396cdecf inset; background: #ddebffaa; }
 .affix-4 { box-shadow: 0 0 4px 0 #c539debf inset; background: #ffddf0aa; }
 .affix-5 { box-shadow: 0 0 4px 0 #deaf39 inset; background: #fff6dd; }
+
 .weapon-card .weapon-attr {
   font-size: 14px;
   text-shadow: 0 0 1px #000, 1px 1px 2px rgba(0, 0, 0, 0.7);
@@ -188,7 +198,7 @@ body { width: 600px; }
 
 /* ====== v1.3.0 圣遗物横向排列 ====== */
 .artis-growth-section {
-  margin: 5px 0;
+  display: flex; flex-direction: column;
 }
 .arti-row {
   display: flex; align-items: center;
