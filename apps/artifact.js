@@ -587,9 +587,50 @@ function getEffectiveStats (charName) {
 
 // ---- 构建角色圣遗物评分系数表 (照搬 miao-plugin ArtisMarkCfg.getCfg) ----
 // 为每个有效词条计算 mark (每展示值单位的评分贡献) 与 fixWeight (单次max成长的评分贡献)
-function _buildCharMarkTable (charName, charMeta) {
-  const weights = _usefulAttr[charName] || {}
+// weaponName/weaponAffix/setCounts: 用于照搬 miao-plugin 的权重动态调整
+function _buildCharMarkTable (charName, charMeta, weaponName = '', weaponAffix = 1, setCounts = {}) {
+  const rawWeights = _usefulAttr[charName] || {}
   const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
+
+  // ---- 权重调整 (照搬 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
+  const weights = { ...rawWeights }
+  const wn = weaponName || ''
+
+  // 武器配置 (照搬 miao-plugin ArtisMarkCfg.weaponCfg)
+  const weaponCfg = {
+    '磐岩结绿': { attr: 'hp', max: 30, min: 15 },
+    '猎人之径': { attr: 'mastery' },
+    '薙草之稻光': { attr: 'recharge' },
+    '护摩之杖': { attr: 'hp', max: 18, min: 10 }
+  }
+
+  // 攻双暴武器: 副词缀权重提升 (照搬 miao-plugin weaponCheck)
+  if ((weights.atk || 0) > 0 && weaponCfg[wn]) {
+    const wCfg = weaponCfg[wn]
+    const orig = weights[wCfg.attr] || 0
+    if (orig !== 100) {
+      const maxAffix = wCfg.max || 20
+      const minAffix = wCfg.min || 10
+      const plus = minAffix + (maxAffix - minAffix) * (weaponAffix - 1) / 4
+      weights[wCfg.attr] = Math.min(Math.round(orig + plus), 100)
+    }
+  }
+
+  // 绝缘之旗印4件套: 充能权重拉高至沙漏最高权重 (照搬 miao-plugin)
+  if ((setCounts['绝缘之旗印'] || 0) >= 4) {
+    const maxWeight = Math.max(weights.atk || 0, weights.hp || 0, weights.def || 0, weights.mastery || 0)
+    const orig = weights.recharge || 0
+    if (orig < maxWeight) {
+      weights.recharge = Math.min(Math.round(orig + 75), maxWeight)
+    }
+  }
+
+  // 西风系列武器: 暴击权重强制100 (照搬 miao-plugin)
+  if (/^西风(长枪|大剑|剑|猎弓|秘典)$/.test(wn) && (weights.cpct || 0) < 100) {
+    weights.cpct = 100
+  }
+
+  // ---- 构建系数表 ----
   const markMap = {}
 
   // 各位置可用主词条列表
@@ -602,8 +643,8 @@ function _buildCharMarkTable (charName, charMeta) {
   const subAttrList = ['atk', 'atkPlus', 'def', 'defPlus', 'hp', 'hpPlus', 'mastery', 'recharge', 'cpct', 'cdmg']
 
   for (const [key, cfg] of Object.entries(_attrMap)) {
-    if (!cfg.value) continue // 跳过无副词条值的属性 (仅有主词条的: 实际上都有value)
-    const baseKey = cfg.base || '' // atkPlus→atk, hpPlus→hp, defPlus→def
+    if (!cfg.value) continue
+    const baseKey = cfg.base || ''
     const weight = weights[baseKey || key]
     if (!weight || weight <= 0) continue
 
@@ -619,13 +660,11 @@ function _buildCharMarkTable (charName, charMeta) {
       // 小词条→等效百分比评分 (照搬 miao-plugin ArtisMarkCfg)
       const pctCfg = _attrMap[baseKey]
       if (!pctCfg?.value) continue
-      // plus: 羽毛311 + 武器基础 ≈ 520 (照搬 miao-plugin)
       const plus = baseKey === 'atk' ? 520 : 0
       const baseVal = baseAttr[baseKey] || 1
-      // fixWeight = weight × flatMax / pctMax / (base + plus) × 100
       const fixWeight = weight * cfg.value / pctCfg.value / (baseVal + plus) * 100
       markMap[key] = {
-        mark: fixWeight / cfg.value, // = weight / pctMax / (base + plus) × 100
+        mark: fixWeight / cfg.value,
         fixWeight,
         weight,
         maxRoll: cfg.value,
@@ -649,6 +688,7 @@ function _buildCharMarkTable (charName, charMeta) {
   markMap._mainAttrByPos = mainAttrByPos
   markMap._subAttrList = subAttrList
   markMap._maxWeightByPos = maxWeightByPos
+  markMap._weights = weights  // 调整后的权重 (用于有效词条判断和fixPct)
   return markMap
 }
 
@@ -963,12 +1003,13 @@ async function processArtifacts (uid, charName) {
     if (key === 'defPlus') return 'def'
     return key
   }
-  const currWeights = _usefulAttr[charName] || {}
-
   // ---- 构建角色评分系数表 & 位置理论最高分 (照搬 miao-plugin) ----
-  const markTable = _buildCharMarkTable(charName, charMeta)
+  const markTable = _buildCharMarkTable(charName, charMeta,
+    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts)
   const posMaxMark = _computePosMaxMark(markTable)
   const maxWeightByPos = markTable._maxWeightByPos
+  // 使用调整后的权重 (已计入武器/套装加成)
+  const currWeights = markTable._weights
 
   for (let pos = 1; pos <= 5; pos++) {
     const arti = artisData[pos]
@@ -1428,7 +1469,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.2'
+      version: '1.12.3'
     }
 
     try {
@@ -1448,7 +1489,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.2`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.3`
             }
           }
         }
