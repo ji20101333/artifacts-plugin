@@ -33,7 +33,7 @@ Returns an image showing the character's artifact set with detailed growth histo
   - Enhancement hit count (line break at ≥4 hits)
   - Initial count / effective count / total upgrade count
 - **Artifact Score & Rating** (SSS/ACE/MAX, matching miao-plugin scoring formula)
-- **Effective Substat Summary Table**: Total effective count + per-stat breakdown (based on liangshi-calc character definitions)
+- **Effective Substat Summary Table**: Total effective count + per-stat breakdown (based on liangshi-calc character definitions, only 7 actual substat types: ATK/HP/DEF/EM/ER/CR/CD)
 
 If no artifact data is bound to the character/UID, an appropriate error message is returned.
 

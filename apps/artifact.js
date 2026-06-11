@@ -1227,8 +1227,9 @@ async function processArtifacts (uid, charName) {
   // 统一排序
   summaryItems.sort((a, b) => b.count - a.count)
 
-  // 移除伤害加成行 (与角色面板一致, 不显示dmg/phy)
-  const summaryFiltered = summaryItems.filter(item => item.key !== 'dmg' && item.key !== 'phy')
+  // 仅展示可出现在副词条中的词条 (subAttr: atk/atkPlus/def/defPlus/hp/hpPlus/mstry/recharge/cpct/cdmg; dmg/phy/heal 为主词条专属)
+  const _subSummaryKeys = new Set(['atk', 'def', 'hp', 'mastery', 'recharge', 'cpct', 'cdmg'])
+  const summaryFiltered = summaryItems.filter(item => _subSummaryKeys.has(item.key))
 
   // 计算总计
   let totalWordCount = 0
