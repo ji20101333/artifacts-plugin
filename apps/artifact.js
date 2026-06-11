@@ -19,6 +19,7 @@ const _miaoPluginDir = path.resolve(_cwd, 'plugins/miao-plugin')
 // ---- 静态数据缓存 ----
 let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData, _usefulAttr
 let _avgRollValue = {}   // 每个属性词条的平均成长值 (展示量级)
+let _alignmentMap = {}   // 词条对齐值: 以暴伤为基准(1.0), 暴击≈2.0, 大攻击≈1.33
 let _artiBuffs = {}     // artifact set buff configs from calc.js
 let _pieceToSet = {}    // artifact piece name → set name mapping
 let _charMeta = {}      // character data.json keyed by numeric ID
@@ -77,6 +78,17 @@ async function loadStaticData () {
     for (const [key, cfg] of Object.entries(_attrMap)) {
       if (cfg.value && cfg.valueMin) {
         _avgRollValue[key] = (cfg.value + cfg.valueMin) / 2
+      }
+    }
+
+    // 1.2 计算词条对齐值: 以暴伤最大值为基准(对齐值=1.0)
+    // 公式: alignment = cdmg_maxRoll / stat_maxRoll
+    // 示例: cpct对齐值 = 7.77/3.885 = 2.0, atk对齐值 = 7.77/5.8275 ≈ 1.33
+    _alignmentMap = {}
+    const cdmgMax = _attrMap['cdmg']?.value || 7.77
+    for (const [key, cfg] of Object.entries(_attrMap)) {
+      if (cfg.value && cfg.value > 0) {
+        _alignmentMap[key] = cdmgMax / cfg.value
       }
     }
 
@@ -854,29 +866,38 @@ async function processArtifacts (uid, charName) {
       if (weightVal > 0) {
         let displayTotal = toDisplayValue(sh.key, sh.totalValue)
         let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
-        // liangshi-calc 评分: 权重 × 有效词条数(以最大成长计)
-        // _attrMap[].value 已是展示量级(basicNum*attrPct), 不再经 toDisplayValue
-        let maxDisplay = _attrMap[sh.key]?.value || 1
+        // 对齐值: 以暴伤为基准(=1), 如暴击≈2.0, 大攻击≈1.33
+        let alignment = _alignmentMap[sh.key] || 1
         // 小攻击/小防御/小生命 → 等效大百分比 (乘以100对齐展示量级)
         if (sh.key === 'atkPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
           avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
-          maxDisplay = _attrMap.atk?.value || 1
+          alignment = _alignmentMap.atk || 1
         } else if (sh.key === 'hpPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
           avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
-          maxDisplay = _attrMap.hp?.value || 1
+          alignment = _alignmentMap.hp || 1
         } else if (sh.key === 'defPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
           avgVal = _avgRollValue.def || toDisplayValue('def', 1)
-          maxDisplay = _attrMap.def?.value || 1
+          alignment = _alignmentMap.def || 1
         }
+        // 词条数 (平均成长计)
         const wordCount = displayTotal / avgVal
         upgradeCount += wordCount
-        // miao-plugin/liangshi-calc: score = weight/100 × value/maxRoll
-        artiScore += (weightVal / 100) * (displayTotal / maxDisplay)
+        // liangshi-calc/miao 评分公式: displayValue × alignment × weight/100
+        artiScore += displayTotal * alignment * (weightVal / 100)
       }
     }
+    // 主词条对齐值: 基于 miao-plugin fixPct 逻辑
+    // 花/羽 fixPct 恒为 1; 沙/杯/头 若主词条权重>0则 1, 否则 0.5
+    let mainStatAlignment = 1
+    if (pos >= 3) {
+      const mainWeightKey = getWeightKey(mainKey)
+      const mainWeight = currWeights[mainWeightKey] || 0
+      mainStatAlignment = mainWeight > 0 ? 1 : 0.5
+    }
+    artiScore = artiScore * mainStatAlignment
     upgradeCount = Math.round(upgradeCount * 100) / 100
     artiScore = Math.round(artiScore * 100) / 100
 
@@ -969,7 +990,8 @@ async function processArtifacts (uid, charName) {
   totalScore = Math.round(totalScore * 100) / 100
 
   // 圣遗物总分 & 评级 (liangshi-calc 加权评分)
-  const totalMark = totalScore
+  // miao-plugin: totalMark/5 与阈值比较 (5件取平均)
+  const totalMark = totalScore / artisList.filter(a => !a.empty).length || 1
   const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
   let markClass = 'D'
   for (const [grade, threshold] of scoreMap) {
@@ -1247,7 +1269,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.18'
+      version: '1.11.19'
     }
 
     try {
@@ -1267,7 +1289,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.18`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.19`
             }
           }
         }
