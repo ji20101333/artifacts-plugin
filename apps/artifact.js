@@ -854,20 +854,26 @@ async function processArtifacts (uid, charName) {
       if (weightVal > 0) {
         let displayTotal = toDisplayValue(sh.key, sh.totalValue)
         let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
+        // liangshi-calc 评分: 权重 × 有效词条数(以最大成长计)
+        let maxDisplay = toDisplayValue(sh.key, _attrMap[sh.key]?.value || 1)
         // 小攻击/小防御/小生命 → 等效大百分比 (乘以100对齐展示量级)
         if (sh.key === 'atkPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
           avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
+          maxDisplay = toDisplayValue('atk', _attrMap.atk?.value || 1)
         } else if (sh.key === 'hpPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
           avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
+          maxDisplay = toDisplayValue('hp', _attrMap.hp?.value || 1)
         } else if (sh.key === 'defPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
           avgVal = _avgRollValue.def || toDisplayValue('def', 1)
+          maxDisplay = toDisplayValue('def', _attrMap.def?.value || 1)
         }
         const wordCount = displayTotal / avgVal
         upgradeCount += wordCount
-        artiScore += displayTotal * (weightVal / 100)
+        // miao-plugin/liangshi-calc: score = weight/100 × value/maxRoll
+        artiScore += (weightVal / 100) * (displayTotal / maxDisplay)
       }
     }
     upgradeCount = Math.round(upgradeCount * 100) / 100
@@ -1232,7 +1238,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.6'
+      version: '1.11.7'
     }
 
     try {
@@ -1252,7 +1258,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.6`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.7`
             }
           }
         }
