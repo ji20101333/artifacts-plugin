@@ -870,11 +870,14 @@ async function processArtifacts (uid, charName) {
 
     const img = findArtifactImage(name)
 
+    // 初始词条数: 5★=副词条种类数, 4★及以下不显示
+    const initialCount = star >= 5 ? subHistory.length : 0
+
     artisList.push({
       pos, empty: false, name, level, star, img,
       mainKey, mainValText: formatMainValue(mainKey, mainVal),
       mainKeyName: mainKeyNameMap[mainKey] || mainKey,
-      subHistory, upgradeCount, effectiveCount,
+      subHistory, upgradeCount, effectiveCount, initialCount,
       posName: posNames[pos] || `位置${pos}`
     })
   }
@@ -915,7 +918,19 @@ async function processArtifacts (uid, charName) {
       shortName: summaryLabelMap[key] || subKeyShortName[key] || key,
       count: Math.round(summaryMap[key].count * 100) / 100
     }))
-    .sort((a, b) => b.count - a.count)
+
+  // 强制显示所有有效词条类型 (权重>0但词条数为0的也要显示)
+  for (const [wKey, wVal] of Object.entries(currWeights)) {
+    if (wVal > 0 && !summaryMap[wKey]) {
+      summaryItems.push({
+        key: wKey,
+        shortName: summaryLabelMap[wKey] || subKeyShortName[wKey] || wKey,
+        count: 0
+      })
+    }
+  }
+  // 统一排序
+  summaryItems.sort((a, b) => b.count - a.count)
 
   // 计算总计
   let totalWordCount = 0
