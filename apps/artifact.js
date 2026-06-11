@@ -867,7 +867,7 @@ async function processArtifacts (uid, charName) {
         }
         const wordCount = displayTotal / avgVal
         upgradeCount += wordCount
-        artiScore += wordCount * (weightVal / 100)
+        artiScore += displayTotal * (weightVal / 100)
       }
     }
     upgradeCount = Math.round(upgradeCount * 100) / 100
@@ -1231,7 +1231,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.4'
+      version: '1.11.5'
     }
 
     try {
@@ -1251,7 +1251,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.4`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.5`
             }
           }
         }
