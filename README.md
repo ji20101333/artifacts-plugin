@@ -116,5 +116,3 @@ git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/
 以上项目均为 MIT 许可证，允许自由使用、复制、修改、合并、发布、分发、再许可和/或销售副本，但须保留原始版权声明和许可声明。
 
 本插件为非商业项目，仅供学习交流使用。
-
----
