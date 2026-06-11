@@ -585,52 +585,105 @@ function getEffectiveStats (charName) {
   return ['atk', 'cpct', 'cdmg']
 }
 
-// ---- 构建角色圣遗物评分系数表 (照搬 miao-plugin ArtisMarkCfg.getCfg) ----
-// 为每个有效词条计算 mark (每展示值单位的评分贡献) 与 fixWeight (单次max成长的评分贡献)
-// weaponName/weaponAffix/setCounts: 用于照搬 miao-plugin 的权重动态调整
-function _buildCharMarkTable (charName, charMeta, weaponName = '', weaponAffix = 1, setCounts = {}) {
+// ---- 获取调整后的词条权重 (照搬 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
+// 处理: 角色专属artis.js规则 → 武器权重调整 → 套装调整
+async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, attrCtx = null) {
   const rawWeights = _usefulAttr[charName] || {}
-  const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
-
-  // ---- 权重调整 (照搬 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
-  const weights = { ...rawWeights }
   const wn = weaponName || ''
 
-  // 武器配置 (照搬 miao-plugin ArtisMarkCfg.weaponCfg)
-  const weaponCfg = {
-    '磐岩结绿': { attr: 'hp', max: 30, min: 15 },
-    '猎人之径': { attr: 'mastery' },
-    '薙草之稻光': { attr: 'recharge' },
-    '护摩之杖': { attr: 'hp', max: 18, min: 10 }
+  // 默认权重调整 (照搬 miao-plugin ArtisMarkCfg.def 函数)
+  const applyDefaultAdjustments = (weights) => {
+    // 武器配置 (照搬 weaponCfg)
+    const weaponCfg = {
+      '磐岩结绿': { attr: 'hp', max: 30, min: 15 },
+      '猎人之径': { attr: 'mastery' },
+      '薙草之稻光': { attr: 'recharge' },
+      '护摩之杖': { attr: 'hp', max: 18, min: 10 }
+    }
+    if ((weights.atk || 0) > 0 && weaponCfg[wn]) {
+      const wCfg = weaponCfg[wn]
+      const orig = weights[wCfg.attr] || 0
+      if (orig !== 100) {
+        const maxAffix = wCfg.max || 20
+        const minAffix = wCfg.min || 10
+        const plus = minAffix + (maxAffix - minAffix) * (weaponAffix - 1) / 4
+        weights[wCfg.attr] = Math.min(Math.round(orig + plus), 100)
+      }
+    }
+    // 绝缘4件套
+    if ((setCounts['绝缘之旗印'] || 0) >= 4) {
+      const maxW = Math.max(weights.atk || 0, weights.hp || 0, weights.def || 0, weights.mastery || 0)
+      const orig = weights.recharge || 0
+      if (orig < maxW) {
+        weights.recharge = Math.min(Math.round(orig + 75), maxW)
+      }
+    }
+    // 西风系列
+    if (/^西风(长枪|大剑|剑|猎弓|秘典)$/.test(wn) && (weights.cpct || 0) < 100) {
+      weights.cpct = 100
+    }
+    return weights
   }
 
-  // 攻双暴武器: 副词缀权重提升 (照搬 miao-plugin weaponCheck)
-  if ((weights.atk || 0) > 0 && weaponCfg[wn]) {
-    const wCfg = weaponCfg[wn]
-    const orig = weights[wCfg.attr] || 0
-    if (orig !== 100) {
-      const maxAffix = wCfg.max || 20
-      const minAffix = wCfg.min || 10
-      const plus = minAffix + (maxAffix - minAffix) * (weaponAffix - 1) / 4
-      weights[wCfg.attr] = Math.min(Math.round(orig + plus), 100)
+  // 尝试加载角色专属artis.js (照搬 miao-plugin char.getArtisCfg)
+  const artisJsPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'artis.js')
+  if (fs.existsSync(artisJsPath)) {
+    try {
+      const artisMod = await import(pathToFileURL(artisJsPath))
+      const artisFn = artisMod.default
+      if (typeof artisFn === 'function') {
+        let useAdjusted = false // true=def (需要调整), false=rule (不调整)
+        let finalWeights = null
+
+        // mock def: 合并权重后由applyDefaultAdjustments统一调整 (照搬 miao-plugin)
+        const def = (attrWeight) => {
+          useAdjusted = true
+          finalWeights = { ...rawWeights, ...attrWeight }
+          return { title: `${charName}-通用`, attrWeight: finalWeights }
+        }
+
+        // mock rule: 直接使用传入权重, 不做任何调整 (照搬 miao-plugin)
+        const rule = (title, attrWeight) => {
+          useAdjusted = false
+          finalWeights = { ...attrWeight }
+          return { title, attrWeight: finalWeights }
+        }
+
+        // 提供当前属性上下文 (用于 artis.js 中的 attr.mastery 等判断)
+        const attr = attrCtx ? {
+          mastery: (attrCtx.masteryBase || 0) + (attrCtx.masteryPlus || 0) + ((attrCtx.masteryPct || 0) / 100 * (attrCtx.masteryBase || 0) || 0)
+        } : {}
+
+        const weapon = { name: wn, affix: weaponAffix }
+
+        artisFn({ attr, weapon, rule, def })
+
+        if (finalWeights) {
+          if (useAdjusted) {
+            // def 路径: 应用武器/套装调整
+            return applyDefaultAdjustments(finalWeights)
+          } else {
+            // rule 路径: 直接返回 (不做任何调整)
+            return finalWeights
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn(`[artifacts-plugin] 加载artis.js失败 [${charName}]: ${e.message}`)
     }
   }
 
-  // 绝缘之旗印4件套: 充能权重拉高至沙漏最高权重 (照搬 miao-plugin)
-  if ((setCounts['绝缘之旗印'] || 0) >= 4) {
-    const maxWeight = Math.max(weights.atk || 0, weights.hp || 0, weights.def || 0, weights.mastery || 0)
-    const orig = weights.recharge || 0
-    if (orig < maxWeight) {
-      weights.recharge = Math.min(Math.round(orig + 75), maxWeight)
-    }
-  }
+  // 无artis.js时的默认行为: 使用原始权重 + 武器/套装调整
+  return applyDefaultAdjustments({ ...rawWeights })
+}
 
-  // 西风系列武器: 暴击权重强制100 (照搬 miao-plugin)
-  if (/^西风(长枪|大剑|剑|猎弓|秘典)$/.test(wn) && (weights.cpct || 0) < 100) {
-    weights.cpct = 100
-  }
+// ---- 构建角色圣遗物评分系数表 (照搬 miao-plugin ArtisMarkCfg.getCfg) ----
+// 为每个有效词条计算 mark (每展示值单位的评分贡献) 与 fixWeight (单次max成长的评分贡献)
+// adjustedWeights: 已经过武器/套装/角色规则调整的最终权重
+function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
+  const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
+  const weights = adjustedWeights || _usefulAttr[charName] || {}
 
-  // ---- 构建系数表 ----
   const markMap = {}
 
   // 各位置可用主词条列表
@@ -649,7 +702,6 @@ function _buildCharMarkTable (charName, charMeta, weaponName = '', weaponAffix =
     if (!weight || weight <= 0) continue
 
     if (!baseKey) {
-      // 普通词条: mark = weight / maxRollValue (照搬 miao-plugin)
       markMap[key] = {
         mark: weight / cfg.value,
         fixWeight: weight,
@@ -657,7 +709,6 @@ function _buildCharMarkTable (charName, charMeta, weaponName = '', weaponAffix =
         maxRoll: cfg.value
       }
     } else {
-      // 小词条→等效百分比评分 (照搬 miao-plugin ArtisMarkCfg)
       const pctCfg = _attrMap[baseKey]
       if (!pctCfg?.value) continue
       const plus = baseKey === 'atk' ? 520 : 0
@@ -688,7 +739,7 @@ function _buildCharMarkTable (charName, charMeta, weaponName = '', weaponAffix =
   markMap._mainAttrByPos = mainAttrByPos
   markMap._subAttrList = subAttrList
   markMap._maxWeightByPos = maxWeightByPos
-  markMap._weights = weights  // 调整后的权重 (用于有效词条判断和fixPct)
+  markMap._weights = weights
   return markMap
 }
 
@@ -1004,8 +1055,9 @@ async function processArtifacts (uid, charName) {
     return key
   }
   // ---- 构建角色评分系数表 & 位置理论最高分 (照搬 miao-plugin) ----
-  const markTable = _buildCharMarkTable(charName, charMeta,
-    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts)
+  const adjustedWeights = await _getAdjustedWeights(charName,
+    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts, attrCtx)
+  const markTable = _buildCharMarkTable(charName, charMeta, adjustedWeights)
   const posMaxMark = _computePosMaxMark(markTable)
   const maxWeightByPos = markTable._maxWeightByPos
   // 使用调整后的权重 (已计入武器/套装加成)
@@ -1469,7 +1521,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.3'
+      version: '1.12.4'
     }
 
     try {
@@ -1489,7 +1541,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.3`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.4`
             }
           }
         }
