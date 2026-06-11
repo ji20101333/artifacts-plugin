@@ -989,10 +989,9 @@ async function processArtifacts (uid, charName) {
   }
   totalScore = Math.round(totalScore * 100) / 100
 
-  // 圣遗物总分 & 评级 (liangshi-calc 加权评分)
-  // miao-plugin: totalMark/5 与阈值比较 (5件取平均)
-  const totalMark = totalScore / artisList.filter(a => !a.empty).length || 1
-  const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
+  // 圣遗物总分 & 评级 (五件圣遗物评分之和)
+  const totalMark = totalScore
+  const scoreMap = [['D', 35], ['C', 70], ['B', 105], ['A', 140], ['S', 175], ['SS', 210], ['SSS', 245], ['ACE', 280], ['MAX', 350]]
   let markClass = 'D'
   for (const [grade, threshold] of scoreMap) {
     if (totalMark < threshold) { markClass = grade; break }
@@ -1269,7 +1268,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.19'
+      version: '1.11.20'
     }
 
     try {
@@ -1289,7 +1288,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.19`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.20`
             }
           }
         }
