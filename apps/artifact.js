@@ -944,9 +944,20 @@ async function processArtifacts (uid, charName) {
     totalWordCount += arti.upgradeCount
   }
 
+  // 圣遗物总分 & 评级 (照搬 miao-plugin ArtisMark.getMarkClass)
+  const totalMark = Math.round(totalWordCount * 100) / 100
+  const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
+  let markClass = 'D'
+  for (const [grade, threshold] of scoreMap) {
+    if (totalMark < threshold) { markClass = grade; break }
+    markClass = grade
+  }
+
   const effectiveSummary = {
     totalEffectiveCount,
-    totalWordCount: Math.round(totalWordCount * 100) / 100,
+    totalWordCount: totalMark,
+    totalMark,
+    markClass,
     items: summaryFiltered.length > 0 ? summaryFiltered : [{ key: '', shortName: '无有效词条', count: 0 }]
   }
 
@@ -1212,7 +1223,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.2'
+      version: '1.11.3'
     }
 
     try {
@@ -1232,7 +1243,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.2`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.3`
             }
           }
         }

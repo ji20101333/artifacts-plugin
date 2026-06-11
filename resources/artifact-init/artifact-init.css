@@ -184,9 +184,29 @@ body { width: 600px; }
   background-size: auto 100%;
   box-shadow: 0 0 1px 0 #ccc, 2px 2px 4px 0 rgba(50, 50, 50, 0.8);
   overflow: hidden; color: #fff; font-size: 14px;
-  height: 270px; display: flex; flex-direction: column;
+  height: 340px; display: flex; flex-direction: column;
   margin-top: 5px;
 }
+/* 圣遗物总分 & 评级 (照搬 miao-plugin arti-stat-ret) */
+.summary-score {
+  display: table; width: 100%;
+  padding: 10px 10px 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.summary-score-item {
+  display: table-cell; text-align: center; color: #fff;
+}
+.summary-score-item span {
+  font-size: 13px; color: rgba(255, 255, 255, 0.7);
+}
+.summary-score-item strong {
+  display: block; height: 35px; font-size: 28px; line-height: 32px;
+}
+/* 评级颜色 (照搬 miao-plugin) */
+.mark-ACE, .mark-MAX { color: #e85656; font-weight: bold; }
+.mark-SSS, .mark-SS { color: #ffe699; font-weight: bold; }
+.mark-S, .mark-A { color: #d699ff; font-weight: bold; }
 .summary-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 8px 12px;
