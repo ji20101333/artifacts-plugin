@@ -40,7 +40,7 @@ for (let i in files) {
 
 export { apps }
 
-// ---- 插件初始化 + 重启消息检测 (照搬 miao-plugin tools/index.js) ----
+// ---- 插件初始化 + 重启消息检测 (参考 miao-plugin tools/index.js) ----
 async function init () {
   if (Bot?.logger?.info) {
     Bot.logger.info('[artifacts-plugin] 圣遗物成长值面板插件初始化~')

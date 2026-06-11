@@ -9,14 +9,14 @@
 
 {{block 'main'}}
 <div class="profile-cont game-gs">
-  <!-- ====== 角色头部区 (照搬 miao-plugin profile-detail) ====== -->
+  <!-- ====== 角色头部区 (参考 miao-plugin profile-detail) ====== -->
   <div class="basic">
     <div class="main-pic" style="background-image:url({{_miao_path}}{{costumeSplash||charImgs?.splash}})"></div>
     <div class="detail">
       <div class="char-name">{{name}}</div>
       <div class="char-lv">UID {{uid}} - Lv.{{level}} <span class="cons cons-{{cons}}">{{cons}}命</span></div>
       <div>
-        <!-- 天赋 (照搬 miao-plugin) -->
+        <!-- 天赋 (参考 miao-plugin) -->
         {{set talentMap = talentMap || {a: '普攻', e: '战技', q: '爆发'} }}
         <div class="char-talents">
           {{each talentMap tName key}}
@@ -32,7 +32,7 @@
           </div>
           {{/each}}
         </div>
-        <!-- 角色属性面板 (照搬 miao-plugin) -->
+        <!-- 角色属性面板 (参考 miao-plugin) -->
         {{set attrMap = {hp:'生命值',atk:'攻击力',def:'防御力',mastery:'元素精通',cpct:'暴击率',cdmg:'暴击伤害',recharge:'元素充能',dmg:'伤害加成'} }}
         {{set cw = charWeight || {} }}
         <ul class="char-attr">
@@ -57,7 +57,7 @@
         </ul>
       </div>
     </div>
-    <!-- 命座图标 (照搬 miao-plugin profile-detail) -->
+    <!-- 命座图标 (参考 miao-plugin profile-detail) -->
     <div class="char-cons">
       {{set consArr = [1,2,3,4,5,6]}}
       {{each consArr idx}}
@@ -74,7 +74,7 @@
   <div class="profile-detail">
     <div class="detail-split">
       {{if weaponInfo && weaponInfo.name}}
-      <!-- 武器 (左半栏, 照搬 miao-plugin .artis .weapon 结构) -->
+      <!-- 武器 (左半栏, 参考 miao-plugin .artis .weapon 结构) -->
       <div class="detail-left">
         <div class="weapon-card">
           <div class="weapon-img" style="background-image:url({{_miao_path}}{{weaponInfo.img}})"></div>

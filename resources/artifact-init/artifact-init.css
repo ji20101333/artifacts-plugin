@@ -1,4 +1,4 @@
-/* 圣遗物成长值面板样式 - 照搬 miao-plugin profile-detail.css */
+/* 圣遗物成长值面板样式 - 参考 miao-plugin profile-detail.css */
 
 .font-YS {
   font-family: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
@@ -10,7 +10,7 @@ body { width: 600px; }
 .container { width: 600px; padding: 0; background-size: cover; overflow: hidden; }
 .profile-cont { padding: 0 10px; margin-right: 5px; }
 
-/* ====== 角色头部 (照搬 miao-plugin .basic) ====== */
+/* ====== 角色头部 (参考 miao-plugin .basic) ====== */
 .basic {
   position: relative; margin: 0 -15px 15px -10px;
 }
@@ -41,7 +41,7 @@ body { width: 600px; }
   vertical-align: bottom;
 }
 
-/* 命座文字底色 (照搬 miao-plugin common.css) */
+/* 命座文字底色 (参考 miao-plugin common.css) */
 .cons {
   display: inline-block;
   vertical-align: middle;
@@ -56,7 +56,7 @@ body { width: 600px; }
 .cons-5 { background: #531ba9cf; color: #fff; }
 .cons-6 { background: #ff5722; color: #fff; }
 
-/* ====== 天赋图标 (照搬 miao-plugin) ====== */
+/* ====== 天赋图标 (参考 miao-plugin) ====== */
 .talent-icon {
   width: 100px; height: 100px; padding: 5px; display: table;
   border-radius: 50%; position: relative;
@@ -90,7 +90,7 @@ body { width: 600px; }
 }
 .char-talents .talent-item { flex: 1; }
 
-/* 命座图标 (照搬 miao-plugin profile-detail.css) */
+/* 命座图标 (参考 miao-plugin profile-detail.css) */
 .char-cons {
   display: flex;
   width: 250px;
@@ -108,7 +108,7 @@ body { width: 600px; }
   opacity: 0.4;
 }
 
-/* ====== 角色属性面板 (照搬 miao-plugin .char-attr) ====== */
+/* ====== 角色属性面板 (参考 miao-plugin .char-attr) ====== */
 .char-attr {
   backdrop-filter: blur(2px);
   background: rgba(0, 0, 0, 0.2); border-radius: 8px; overflow: hidden;
@@ -169,7 +169,7 @@ body { width: 600px; }
   font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
-/* ====== 圣遗物 & 武器区 (照搬 miao-plugin) ====== */
+/* ====== 圣遗物 & 武器区 (参考 miao-plugin) ====== */
 .profile-detail { margin-top: 10px; }
 
 /* 左右分栏: 武器(左) + 有效词条汇总(右) */
@@ -187,7 +187,7 @@ body { width: 600px; }
   height: 270px; display: flex; flex-direction: column;
   margin-top: 5px;
 }
-/* 圣遗物总分 & 评级 (照搬 miao-plugin arti-stat-ret) */
+/* 圣遗物总分 & 评级 (参考 miao-plugin arti-stat-ret) */
 .summary-score {
   display: table; width: 100%;
   padding: 10px 10px 4px;
@@ -203,7 +203,7 @@ body { width: 600px; }
 .summary-score-item strong {
   display: block; height: 35px; font-size: 28px; line-height: 32px;
 }
-/* 评级颜色 (照搬 miao-plugin) */
+/* 评级颜色 (参考 miao-plugin) */
 .mark-ACE, .mark-MAX { color: #e85656; font-weight: bold; }
 .mark-SSS, .mark-SS { color: #ffe699; font-weight: bold; }
 .mark-S, .mark-A { color: #d699ff; font-weight: bold; }
@@ -229,7 +229,7 @@ body { width: 600px; }
 .summary-label { color: #ccc; }
 .summary-val { color: #ffe699; font-weight: bold; }
 
-/* 武器卡片 (照搬 miao-plugin .artis .weapon) */
+/* 武器卡片 (参考 miao-plugin .artis .weapon) */
 .weapon-card {
   border-radius: 10px;
   background: url("../common/cont/card-bg.png") top left repeat-x;

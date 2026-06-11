@@ -32,14 +32,14 @@
   - 副词条成长历史（格式：`初始值+第一次成长+...+最后一次成长=最终值`）
   - 强化命中次数（≥4 次时换行显示）
   - 初始词条数 / 有效词条数 / 总升级词条数
-- **圣遗物评分 & 评级**（SSS/ACE/MAX 等，照搬 miao-plugin 评分公式）
+- **圣遗物评分 & 评级**（SSS/ACE/MAX 等，参考 miao-plugin 评分公式）
 - **有效词条汇总表**：总有效词条数 + 各副词条分类计数（基于 liangshi-calc 的角色有效词条定义，仅展示可出现在副词条中的 7 类词条：攻/生/防/精通/充能/暴击/暴伤）
 
 若无角色/UID 绑定的圣遗物数据，返回相应错误提示。
 
 ### 2. 圣遗物评分公式
 
-从 v1.12.0 起，评分公式完全照搬 [miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git) 的 `ArtisMark.js` / `ArtisMarkCfg.js`：
+从 v1.12.0 起，评分公式完全参考 [miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git) 的 `ArtisMark.js` / `ArtisMarkCfg.js`：
 
 - **核心原理**：`mark = weight / maxRollValue` — 权重 100 的词条一次最大强化 = 100 原始分
 - **副词条得分**：`Σ(mark × displayValue)`，按有效副词条累加

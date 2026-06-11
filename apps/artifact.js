@@ -28,7 +28,7 @@ let _weaponByName = {}  // weapon data keyed by name
 let _weaponBuffs = {}   // weapon buff/passive configs from calc.js
 let _dataLoaded = false
 
-// ---- 武器 Buff 辅助函数 (照搬 miao-plugin resources/meta-gs/weapon/index.js) ----
+// ---- 武器 Buff 辅助函数 (参考 miao-plugin resources/meta-gs/weapon/index.js) ----
 // step(start, _step): 生成 6 元素的精炼数组 [r1..r5 + 1]
 function step (start, _step = 0) {
   if (!_step) { _step = start / 4 }
@@ -45,7 +45,7 @@ function staticStep (key, start, _step) {
   return { title: `${key}提高[${key}]`, isStatic: true, refine }
 }
 
-// _applySetBuffs(ctx, buff, charElem): 应用圣遗物套装静态 Buff (照搬 miao-plugin Attr.setArtisAttr)
+// _applySetBuffs(ctx, buff, charElem): 应用圣遗物套装静态 Buff (参考 miao-plugin Attr.setArtisAttr)
 // 仅处理 isStatic=true 的 buff; 检查 elem 限制; 应用 data 值
 function _applySetBuffs (ctx, buff, charElem) {
   const buffsArr = Array.isArray(buff) ? buff : [buff]
@@ -109,7 +109,7 @@ async function loadStaticData () {
     )
     _mainAttrData = mainAttrMod.mainAttrData
 
-    // 5. 加载圣遗物评分权重 (照搬 miao-plugin artis-mark.js → usefulAttr)
+    // 5. 加载圣遗物评分权重 (参考 miao-plugin artis-mark.js → usefulAttr)
     const artisMarkPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/artis-mark.js')
     if (fs.existsSync(artisMarkPath)) {
       const artisMarkMod = await import(pathToFileURL(artisMarkPath))
@@ -118,7 +118,7 @@ async function loadStaticData () {
       _usefulAttr = {}
     }
 
-    // 6. 加载圣遗物套装 Buff (照搬 miao-plugin meta-gs/artifact/calc.js)
+    // 6. 加载圣遗物套装 Buff (参考 miao-plugin meta-gs/artifact/calc.js)
     const artiCalcPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/calc.js')
     if (fs.existsSync(artiCalcPath)) {
       const artiCalcMod = await import(pathToFileURL(artiCalcPath))
@@ -189,7 +189,7 @@ async function loadStaticData () {
       }
     }
 
-    // 9. 加载武器特效 Buff 配置 (照搬 miao-plugin resources/meta-gs/weapon/index.js)
+    // 9. 加载武器特效 Buff 配置 (参考 miao-plugin resources/meta-gs/weapon/index.js)
     // 每个武器类型的 calc.js 导出 function(step, staticStep) → { 武器名: buffConfig }
     _weaponBuffs = {}
     const weaponTypeList = ['sword', 'claymore', 'polearm', 'bow', 'catalyst']
@@ -244,7 +244,7 @@ function getCharImage (charName, type = 'splash') {
   return ''
 }
 
-// ---- 角色详细属性加载 (照搬 miao-plugin Character.getDetail) ----
+// ---- 角色详细属性加载 (参考 miao-plugin Character.getDetail) ----
 let _charDetailCache = {}
 function loadCharDetailAttr (charName) {
   if (_charDetailCache[charName]) return _charDetailCache[charName]
@@ -271,7 +271,7 @@ function loadCharDetailAttr (charName) {
   }
 }
 
-// ---- 角色基础属性缓存 (从单个角色data.json读取, 照搬 miao-plugin char.baseAttr) ----
+// ---- 角色基础属性缓存 (从单个角色data.json读取, 参考 miao-plugin char.baseAttr) ----
 let _charBaseAttrCache = {}
 function getCharBaseAttr (charName) {
   if (_charBaseAttrCache[charName]) return _charBaseAttrCache[charName]
@@ -287,18 +287,18 @@ function getCharBaseAttr (charName) {
   return null
 }
 
-// ---- 判断元素属性键 (照搬 miao-plugin Format.isElem) ----
+// ---- 判断元素属性键 (参考 miao-plugin Format.isElem) ----
 const _elemKeys = ['pyro', 'hydro', 'anemo', 'electro', 'cryo', 'geo', 'dendro', 'phy']
 function isElemKey (key) {
   return _elemKeys.includes(key)
 }
 
-// ---- 天赋图标查找 (照搬 miao-plugin CharImg.getImgs) ----
+// ---- 天赋图标查找 (参考 miao-plugin CharImg.getImgs) ----
 function getTalentIcons (charName, talentIds, weaponType) {
   const icons = {}
   const charBase = `meta-gs/character/${charName}`
   const iconsDir = path.join(_miaoPluginDir, 'resources', charBase, 'icons')
-  // talent-a: 使用武器类型图标 (照搬 miao-plugin: imgs.a = /common/item/atk-${weaponType}.webp)
+  // talent-a: 使用武器类型图标 (参考 miao-plugin: imgs.a = /common/item/atk-${weaponType}.webp)
   icons.a = `common/item/atk-${weaponType || 'sword'}.webp`
   // talent-e / talent-q: 角色专属天赋图标
   for (const key of ['e', 'q']) {
@@ -306,7 +306,7 @@ function getTalentIcons (charName, talentIds, weaponType) {
     if (fs.existsSync(talentPath)) {
       icons[key] = `${charBase}/icons/talent-${key}.webp`
     } else {
-      // fallback: 尝试命之座图标 (照搬 miao-plugin)
+      // fallback: 尝试命之座图标 (参考 miao-plugin)
       for (let ci = 1; ci <= 6; ci++) {
         const consPath = path.join(iconsDir, `cons-${ci}.webp`)
         if (fs.existsSync(consPath)) {
@@ -317,7 +317,7 @@ function getTalentIcons (charName, talentIds, weaponType) {
       if (!icons[key]) icons[key] = ''
     }
   }
-  // 命座图标 (照搬 miao-plugin CharImg.getImgs)
+  // 命座图标 (参考 miao-plugin CharImg.getImgs)
   for (let i = 1; i <= 6; i++) {
     const consPath = path.join(iconsDir, `cons-${i}.webp`)
     if (fs.existsSync(consPath)) {
@@ -380,7 +380,7 @@ async function resolveUid (e) {
   return ''
 }
 
-// ---- 格式化函数 (照搬 miao-plugin Format.comma / Format.pct) ----
+// ---- 格式化函数 (参考 miao-plugin Format.comma / Format.pct) ----
 function formatComma (num, fix = 0) {
   num = parseFloat((num * 1).toFixed(fix))
   let [integer, decimal] = String.prototype.split.call(num, '.')
@@ -391,7 +391,7 @@ function formatPct (num, fix = 1) {
   return (num * 1).toFixed(fix) + '%'
 }
 
-// ---- AttrData 式属性计算 (照搬 miao-plugin models/attr/AttrData.js) ----
+// ---- AttrData 式属性计算 (参考 miao-plugin models/attr/AttrData.js) ----
 const _baseAttrKeys = ['atk', 'def', 'hp', 'mastery', 'recharge', 'cpct', 'cdmg', 'dmg', 'phy', 'heal', 'shield', 'coloringDmg']
 const _attrReg = new RegExp(`^(${_baseAttrKeys.join('|')})(Base|Plus|Pct)$`)
 
@@ -406,7 +406,7 @@ function createAttrData () {
 }
 
 /**
- * 添加属性值 (照搬 miao-plugin AttrData.addAttr)
+ * 添加属性值 (参考 miao-plugin AttrData.addAttr)
  * @param {Object} ctx - {_attr, _base}
  * @param {string} key - 属性key，支持 Base/Pct/Plus 后缀
  * @param {number} val - 数值
@@ -437,7 +437,7 @@ function addAttr (ctx, key, val, isBase = false) {
 }
 
 /**
- * 计算属性总值 (照搬 miao-plugin AttrData._get)
+ * 计算属性总值 (参考 miao-plugin AttrData._get)
  * 公式: base × (1 + pct/100) + plus
  */
 function getAttr (ctx, key) {
@@ -460,7 +460,7 @@ function getBase (ctx, key) {
 }
 
 /**
- * 计算单条圣遗物词缀 (照搬 miao-plugin Attr.calcArtisAttr)
+ * 计算单条圣遗物词缀 (参考 miao-plugin Attr.calcArtisAttr)
  * value 应为展示量级 (如 cpct: 3.9=3.9%, atk: 5.83=5.83%)
  * 主词条 calcMainValue / 副词条 toDisplayValue 已统一转为展示量级
  */
@@ -505,7 +505,7 @@ function calcMainValue (mainKey, level, star) {
   return attrCfg.value * (1.2 + 0.34 * level) * posEff * (starEff[star || 5] || 1)
 }
 
-// ---- 将 attrIdMap 的十进制值转为展示量级 (照搬 miao-plugin ArtisAttr.getAttr) ----
+// ---- 将 attrIdMap 的十进制值转为展示量级 (参考 miao-plugin ArtisAttr.getAttr) ----
 // attrIdMap 中的 value 为十进制 (如 cpct: 0.039 = 3.9%, atk: 0.0583 = 5.83%)
 // 百分比属性需 ×100 转为展示量级 (如 3.9, 5.83), 数值属性保持原值
 // 武器 bonusData / 圣遗物主词条 calcMainValue 已为展示量级, 无需转换
@@ -585,15 +585,15 @@ function getEffectiveStats (charName) {
   return ['atk', 'cpct', 'cdmg']
 }
 
-// ---- 获取调整后的词条权重 (照搬 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
+// ---- 获取调整后的词条权重 (参考 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
 // 处理: 角色专属artis.js规则 → 武器权重调整 → 套装调整
 async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, attrCtx = null) {
   const rawWeights = _usefulAttr[charName] || {}
   const wn = weaponName || ''
 
-  // 默认权重调整 (照搬 miao-plugin ArtisMarkCfg.def 函数)
+  // 默认权重调整 (参考 miao-plugin ArtisMarkCfg.def 函数)
   const applyDefaultAdjustments = (weights) => {
-    // 武器配置 (照搬 weaponCfg)
+    // 武器配置 (参考 weaponCfg)
     const weaponCfg = {
       '磐岩结绿': { attr: 'hp', max: 30, min: 15 },
       '猎人之径': { attr: 'mastery' },
@@ -625,7 +625,7 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
     return weights
   }
 
-  // 尝试加载角色专属artis.js (照搬 miao-plugin char.getArtisCfg)
+  // 尝试加载角色专属artis.js (参考 miao-plugin char.getArtisCfg)
   const artisJsPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'artis.js')
   if (fs.existsSync(artisJsPath)) {
     try {
@@ -635,14 +635,14 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
         let useAdjusted = false // true=def (需要调整), false=rule (不调整)
         let finalWeights = null
 
-        // mock def: 合并权重后由applyDefaultAdjustments统一调整 (照搬 miao-plugin)
+        // mock def: 合并权重后由applyDefaultAdjustments统一调整 (参考 miao-plugin)
         const def = (attrWeight) => {
           useAdjusted = true
           finalWeights = { ...rawWeights, ...attrWeight }
           return { title: `${charName}-通用`, attrWeight: finalWeights }
         }
 
-        // mock rule: 直接使用传入权重, 不做任何调整 (照搬 miao-plugin)
+        // mock rule: 直接使用传入权重, 不做任何调整 (参考 miao-plugin)
         const rule = (title, attrWeight) => {
           useAdjusted = false
           finalWeights = { ...attrWeight }
@@ -677,7 +677,7 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
   return applyDefaultAdjustments({ ...rawWeights })
 }
 
-// ---- 构建角色圣遗物评分系数表 (照搬 miao-plugin ArtisMarkCfg.getCfg) ----
+// ---- 构建角色圣遗物评分系数表 (参考 miao-plugin ArtisMarkCfg.getCfg) ----
 // 为每个有效词条计算 mark (每展示值单位的评分贡献) 与 fixWeight (单次max成长的评分贡献)
 // adjustedWeights: 已经过武器/套装/角色规则调整的最终权重
 function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
@@ -692,7 +692,7 @@ function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
     4: ['atk', 'def', 'hp', 'mastery', 'dmg', 'phy'],
     5: ['atk', 'def', 'hp', 'mastery', 'heal', 'cpct', 'cdmg']
   }
-  // 可用副词条列表 (照搬 extra.js subAttr)
+  // 可用副词条列表 (参考 extra.js subAttr)
   const subAttrList = ['atk', 'atkPlus', 'def', 'defPlus', 'hp', 'hpPlus', 'mastery', 'recharge', 'cpct', 'cdmg']
 
   for (const [key, cfg] of Object.entries(_attrMap)) {
@@ -743,7 +743,7 @@ function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   return markMap
 }
 
-// ---- 计算各位置理论最高分 (照搬 miao-plugin ArtisMark.getMaxMark) ----
+// ---- 计算各位置理论最高分 (参考 miao-plugin ArtisMark.getMaxMark) ----
 // 模型: 4初始副词条 + 5次强化全中最佳词条 → 最佳词条 ×6 + 其余3个各 ×1
 // 沙/杯/头: 最优主词条贡献 fixWeight×2 (因 mainMaxRoll/maxRoll/4 ≈ 2 次成长等效)
 function _computePosMaxMark (markMap) {
@@ -815,7 +815,7 @@ const statLabelMap = {
   cpct: '暴击率', cdmg: '暴击伤害', recharge: '元素充能', dmg: '伤害加成'
 }
 
-// 武器副词缀显示名映射 (照搬 miao-plugin)
+// 武器副词缀显示名映射 (参考 miao-plugin)
 const weaponAttrTitleMap = {
   atkPct: '攻击', mastery: '精通', dmg: '伤害', hpPct: '生命', defPct: '防御',
   cpct: '暴击', cdmg: '爆伤', phy: '物伤', recharge: '充能', heal: '治疗', shield: '护盾'
@@ -888,7 +888,7 @@ async function processArtifacts (uid, charName) {
   if (weaponMeta && weaponRaw.name) {
     const wLevel = weaponRaw.level || 1
     const wPromote = weaponRaw.promote || 0
-    // 突破等级key: 突破后等级为 20+, 40+, 50+, 60+, 70+, 80+ (照搬 miao-plugin)
+    // 突破等级key: 突破后等级为 20+, 40+, 50+, 60+, 70+, 80+ (参考 miao-plugin)
     const ascBoundaries = [20, 40, 50, 60, 70, 80]
     const levelKey = (wPromote > 0 && ascBoundaries.includes(wLevel)) ? `${wLevel}+` : String(wLevel)
 
@@ -903,7 +903,7 @@ async function processArtifacts (uid, charName) {
     const affixText = weaponMeta.affixData?.text || ''
     const affixDatas = weaponMeta.affixData?.datas || {}
     const affix = weaponRaw.affix || 1
-    // 展开精炼数值 (照搬 miao-plugin Weapon.getAffixDesc: while 循环替换所有 $[N])
+    // 展开精炼数值 (参考 miao-plugin Weapon.getAffixDesc: while 循环替换所有 $[N])
     let desc = affixText
     const reg = /\$\[(\d)\]/g
     let match
@@ -943,10 +943,10 @@ async function processArtifacts (uid, charName) {
 
   const effectiveStats = getEffectiveStats(charName)
 
-  // ---- 初始化属性计算器 (照搬 miao-plugin Attr.calc) ----
+  // ---- 初始化属性计算器 (参考 miao-plugin Attr.calc) ----
   const attrCtx = createAttrData()
 
-  // 角色基础值 (照搬 miao-plugin Attr.calc → setCharAttr)
+  // 角色基础值 (参考 miao-plugin Attr.calc → setCharAttr)
   const charLevel = matchedAvatar.level || 1
   const charCons = matchedAvatar.cons || 0
   const charPromote = calcPromoteLevel(charLevel)
@@ -993,19 +993,19 @@ async function processArtifacts (uid, charName) {
     addAttr(attrCtx, 'defBase', baseDef, true)
   }
 
-  // 基础值: 充能100%, 暴击5%, 暴伤50% (照搬 miao-plugin)
+  // 基础值: 充能100%, 暴击5%, 暴伤50% (参考 miao-plugin)
   addAttr(attrCtx, 'recharge', 100, true)
   addAttr(attrCtx, 'cpct', 5, true)
   addAttr(attrCtx, 'cdmg', 50, true)
 
-  // 武器属性 (照搬 miao-plugin Attr.setWeaponAttr)
+  // 武器属性 (参考 miao-plugin Attr.setWeaponAttr)
   if (weaponInfo) {
     addAttr(attrCtx, 'atkBase', weaponInfo.baseAtk)
     if (weaponInfo.bonusKey) {
       addAttr(attrCtx, weaponInfo.bonusKey, weaponInfo.bonusVal)
     }
 
-    // 武器特效静态 Buff (照搬 miao-plugin Attr.setWeaponAttr → Meta.getMeta('gs','weapon'))
+    // 武器特效静态 Buff (参考 miao-plugin Attr.setWeaponAttr → Meta.getMeta('gs','weapon'))
     // 仅处理 isStatic=true 的 buff, 不处理非静态 buff (data函数/条件型)
     const wBuffs = _weaponBuffs[weaponInfo.name] || []
     const wBuffsArr = Array.isArray(wBuffs) ? wBuffs : [wBuffs]
@@ -1022,7 +1022,7 @@ async function processArtifacts (uid, charName) {
     }
   }
 
-  // 圣遗物套装静态 Buff (照搬 miao-plugin Attr.setArtisAttr → ArtifactSet.getArtisSetBuff)
+  // 圣遗物套装静态 Buff (参考 miao-plugin Attr.setArtisAttr → ArtifactSet.getArtisSetBuff)
   // 统计各套装件数, 激活 2/4 件套效果
   const setCounts = {}
   for (let pos = 1; pos <= 5; pos++) {
@@ -1054,7 +1054,7 @@ async function processArtifacts (uid, charName) {
     if (key === 'defPlus') return 'def'
     return key
   }
-  // ---- 构建角色评分系数表 & 位置理论最高分 (照搬 miao-plugin) ----
+  // ---- 构建角色评分系数表 & 位置理论最高分 (参考 miao-plugin) ----
   const adjustedWeights = await _getAdjustedWeights(charName,
     weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts, attrCtx)
   const markTable = _buildCharMarkTable(charName, charMeta, adjustedWeights)
@@ -1076,7 +1076,7 @@ async function processArtifacts (uid, charName) {
     const mainKey = _mainIdMap[mainId] || '未知'
     const mainVal = calcMainValue(mainKey, level, star)
 
-    // 主词条加入属性计算 (calcMainValue 已返回展示量级, 照搬 miao-plugin)
+    // 主词条加入属性计算 (calcMainValue 已返回展示量级, 参考 miao-plugin)
     calcArtisAttr(attrCtx, mainKey, mainVal, elem)
 
     // 副词条 (attrIdMap 为十进制, 需转为展示量级后加入属性计算)
@@ -1085,7 +1085,7 @@ async function processArtifacts (uid, charName) {
       calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
     }
 
-    // ---- miao-plugin 评分公式 (照搬 ArtisMark.getMark + ArtisMarkCfg.getCfg) ----
+    // ---- miao-plugin 评分公式 (参考 ArtisMark.getMark + ArtisMarkCfg.getCfg) ----
     // 有效数: 权重>0的副词条种类数
     const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
 
@@ -1114,35 +1114,35 @@ async function processArtifacts (uid, charName) {
         // 词条数: 展示值 / 平均成长值
         upgradeCount += displayTotal / avgVal
 
-        // 评分: mark × displayValue (照搬 miao-plugin — 小词条的 mark 已包含等效转换)
+        // 评分: mark × displayValue (参考 miao-plugin — 小词条的 mark 已包含等效转换)
         if (mInfo) {
           subScore += mInfo.mark * toDisplayValue(sh.key, sh.totalValue)
         }
       }
     }
 
-    // 主词条评分 (沙/杯/头, 照搬 miao-plugin ArtisMark.getMark)
+    // 主词条评分 (沙/杯/头, 参考 miao-plugin ArtisMark.getMark)
     let mainScore = 0
     let fixPct = 1
     if (pos >= 3) {
-      // 元素伤害杯映射 (照搬 miao-plugin: 同色→dmg, 法尔伽id=10000128 所有异色→风伤)
+      // 元素伤害杯映射 (参考 miao-plugin: 同色→dmg, 法尔伽id=10000128 所有异色→风伤)
       let scoreKey = mainKey
       if (pos === 4 && isElemKey(mainKey)) {
         if (mainKey === elem || charMeta?.id === 10000128) {
           scoreKey = 'dmg'
         }
       }
-      // 主词条评分贡献 (照搬 miao-plugin)
+      // 主词条评分贡献 (参考 miao-plugin)
       const mInfo = markTable[scoreKey]
       if (mInfo) {
         mainScore = mInfo.mark * mainVal / 4
       }
-      // fixPct: 充能沙漏不重新计算, 恒为1 (照搬 miao-plugin key!== 'recharge' 分支)
+      // fixPct: 充能沙漏不重新计算, 恒为1 (参考 miao-plugin key!== 'recharge' 分支)
       if (mainKey !== 'recharge') {
         const mainWeight = currWeights[scoreKey] || 0
         const posMaxW = maxWeightByPos[pos] || 100
         fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
-        // 攻/生/防 主词条权重≥75 视为可用 (照搬 miao-plugin)
+        // 攻/生/防 主词条权重≥75 视为可用 (参考 miao-plugin)
         if (['atk', 'hp', 'def'].includes(scoreKey) && mainWeight >= 75) {
           fixPct = 1
         }
@@ -1154,7 +1154,7 @@ async function processArtifacts (uid, charName) {
     upgradeCount = Math.round(upgradeCount * 100) / 100
     artiScore = Math.round(artiScore * 100) / 100
 
-    // 单件圣遗物评级 (照搬 miao-plugin ArtisMark.getMarkClass)
+    // 单件圣遗物评级 (参考 miao-plugin ArtisMark.getMarkClass)
     const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
     let artiRating = 'D'
     for (const [grade, threshold] of scoreMap) {
@@ -1260,7 +1260,7 @@ async function processArtifacts (uid, charName) {
     items: summaryFiltered.length > 0 ? summaryFiltered : [{ key: '', shortName: '无有效词条', count: 0 }]
   }
 
-  // ---- 构建角色面板数值 (照搬 miao-plugin ProfileDetail.render) ----
+  // ---- 构建角色面板数值 (参考 miao-plugin ProfileDetail.render) ----
   // 权重来自 miao-plugin artis-mark.js → usefulAttr (默认: atk 75, cpct/cdmg/dmg/phy 100)
   const charWeights = _usefulAttr[charName]
     || { atk: 75, cpct: 100, cdmg: 100, dmg: 100, phy: 100 }
@@ -1317,7 +1317,7 @@ async function processArtifacts (uid, charName) {
       isEffective: !!charWeights[key], showWeight: true
     })
   }
-  // 检查元素/物理伤害加成 (照搬 miao-plugin — 如果 elem dmg > dmg 则显示)
+  // 检查元素/物理伤害加成 (参考 miao-plugin — 如果 elem dmg > dmg 则显示)
   for (const dk of _elemKeys) {
     const dkVal = getAttr(attrCtx, dk)
     const dmgVal = getAttr(attrCtx, 'dmg')
@@ -1348,7 +1348,7 @@ async function processArtifacts (uid, charName) {
   }
 }
 
-// ---- 计算突破等阶 (照搬 miao-plugin Attr.calcPromote) ----
+// ---- 计算突破等阶 (参考 miao-plugin Attr.calcPromote) ----
 function calcPromoteLevel (lv) {
   const lvs = [1, 20, 40, 50, 60, 70, 80, 90, 100]
   let promote = 0
@@ -1435,7 +1435,7 @@ export class artifactInitPanel extends plugin {
       attr[stat.key + 'Plus'] = stat.plus
     }
     // charWeight: miao-plugin 格式 {key: weight}
-    // 照搬 miao-plugin ArtisMark.getMarkDetail → 直接从 usefulAttr 获取, 不通过 charStats 间接构建
+    // 参考 miao-plugin ArtisMark.getMarkDetail → 直接从 usefulAttr 获取, 不通过 charStats 间接构建
     // 伤害加成(dmg/phy)不是副词条, 不在面板显示权重
     const charWeight = { ...result.charWeights }
     delete charWeight.dmg
@@ -1445,7 +1445,7 @@ export class artifactInitPanel extends plugin {
     let weaponData = null
     if (result.weaponInfo) {
       const wi = result.weaponInfo
-      // 照搬 miao-plugin getWeaponDetail: 格式化 attrs
+      // 参考 miao-plugin getWeaponDetail: 格式化 attrs
       const weaponAttrs = { atkBase: formatComma(wi.baseAtk, 1) }
       const attrTitleMap = {}
       if (wi.bonusKey) {
@@ -1456,7 +1456,7 @@ export class artifactInitPanel extends plugin {
           : formatPct(wi.bonusVal * 1, 1)
         attrTitleMap[wi.bonusKey] = wi.bonusKeyName
       }
-      // 转换精炼文本为 nobr 格式 (照搬 miao-plugin: 数字不换行)
+      // 转换精炼文本为 nobr 格式 (参考 miao-plugin: 数字不换行)
       const descHtml = wi.desc
         ? wi.desc.replace(/(\d+(?:\.\d+)?%?)/g, '<nobr>$1</nobr>')
         : ''
@@ -1533,7 +1533,7 @@ export class artifactInitPanel extends plugin {
         {
           retType: 'base64',
           beforeRender ({ data }) {
-            // 照搬 miao-plugin Render.js: 设置 elemLayout
+            // 参考 miao-plugin Render.js: 设置 elemLayout
             // runtime 已预设 _miao_path(相对URL) / defaultLayout(绝对路径), 但未设 elemLayout
             // elemLayout 需要绝对文件系统路径, 不能用相对 URL (否则模板引擎从 CWD 解析)
             const layoutPath = path.join(_miaoPluginDir, 'resources/common/layout/')

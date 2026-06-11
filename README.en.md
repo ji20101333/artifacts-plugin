@@ -39,7 +39,7 @@ If no artifact data is bound to the character/UID, an appropriate error message 
 
 ### 2. Scoring Formula
 
-Since v1.12.0, the scoring formula fully replicates [miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git)'s `ArtisMark.js` / `ArtisMarkCfg.js`:
+Since v1.12.0, the scoring formula references [miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git)'s `ArtisMark.js` / `ArtisMarkCfg.js`:
 
 - **Core principle**: `mark = weight / maxRollValue` — one max roll of a 100-weight stat = 100 raw points
 - **Substat score**: `Σ(mark × displayValue)` per effective substat
