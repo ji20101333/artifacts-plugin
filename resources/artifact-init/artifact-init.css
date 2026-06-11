@@ -325,7 +325,8 @@ body { width: 600px; }
 .arti-pos-label { font-size: 14px; color: #fff; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
 .arti-pos-label .arti-score { font-size: 15px; color: #ffe699; font-weight: bold; }
 .arti-name { font-size: 12px; color: #d3bc8e; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
-.arti-name .arti-rating { font-size: 14px; font-weight: bold; }
+.arti-name .arti-rating { font-size: 14px; font-weight: bold; color: #fff; }
+.mark-D, .mark-C, .mark-B { color: #fff; }
 .arti-main-stat { font-size: 13px; color: #ffe699; }
 .arti-main-stat .main-val { color: #ffd780; }
 .no-arti { font-size: 12px; color: rgba(255,255,255,0.35); }
