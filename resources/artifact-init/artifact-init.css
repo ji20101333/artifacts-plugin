@@ -323,7 +323,7 @@ body { width: 600px; }
 /* 主信息区 */
 .arti-row-main { flex: 1; min-width: 0; padding-right: 40px; }
 .arti-pos-label { font-size: 14px; color: #fff; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-.arti-pos-label .arti-score { font-size: 15px; color: #ffe699; font-weight: bold; }
+.arti-pos-label .arti-score { font-size: 15px; font-weight: bold; }
 .arti-name { font-size: 12px; color: #d3bc8e; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
 .arti-name .arti-rating { font-size: 14px; font-weight: bold; color: #fff; }
 .mark-D, .mark-C, .mark-B { color: #fff; }
