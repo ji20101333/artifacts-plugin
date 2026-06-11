@@ -875,8 +875,9 @@ async function processArtifacts (uid, charName) {
 
     const img = findArtifactImage(name)
 
-    // 初始词条数: 5★=副词条种类数, 4★及以下不显示
-    const initialCount = star >= 5 ? subHistory.length : 0
+    // 初始词条数: 总成长次数-1, 5★适用, 4★及以下不显示
+    const totalGrowth = subHistory.reduce((sum, sh) => sum + sh.growthSteps.length, 0)
+    const initialCount = star >= 5 ? Math.max(0, totalGrowth - 1) : 0
 
     artisList.push({
       pos, empty: false, name, level, star, img,
@@ -1231,7 +1232,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.5'
+      version: '1.11.6'
     }
 
     try {
@@ -1251,7 +1252,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.5`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.6`
             }
           }
         }
