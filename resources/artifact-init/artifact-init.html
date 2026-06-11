@@ -163,8 +163,7 @@
         <div class="arti-row-subs">
           {{each arti.subStats sub}}
           <div class="sub-item {{sub.isEffective ? 'sub-effective' : ''}}">
-            <span class="sub-key">{{sub.shortName}}</span>
-            <span class="sub-formula">{{sub.formula}}</span>
+            <span class="sub-key-formula"><span class="sub-key">{{sub.shortName}}</span><span class="sub-formula">{{sub.formula}}</span></span>
             {{if sub.hitCount >= 4}}
             <br><span class="sub-hits">({{sub.hitCount}}次)</span>
             {{else if sub.hitCount > 0}}
