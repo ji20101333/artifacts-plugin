@@ -1016,7 +1016,6 @@ async function processArtifacts (uid, charName) {
     let mainScore = 0
     let fixPct = 1
     if (pos >= 3) {
-      const mainWeightKey = getWeightKey(mainKey)
       // 元素伤害杯映射 (照搬 miao-plugin: 同色→dmg, 法尔伽id=10000128 所有异色→风伤)
       let scoreKey = mainKey
       if (pos === 4 && isElemKey(mainKey)) {
@@ -1024,17 +1023,20 @@ async function processArtifacts (uid, charName) {
           scoreKey = 'dmg'
         }
       }
+      // 主词条评分贡献 (照搬 miao-plugin)
       const mInfo = markTable[scoreKey]
       if (mInfo) {
         mainScore = mInfo.mark * mainVal / 4
       }
-      // fixPct: 主词条对齐系数 (照搬 miao-plugin)
-      const mainWeight = currWeights[mainWeightKey] || 0
-      const posMaxW = maxWeightByPos[pos] || 100
-      fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
-      // 攻/生/防 主词条权重≥75 视为可用 (照搬 miao-plugin)
-      if (['atk', 'hp', 'def'].includes(mainWeightKey) && mainWeight >= 75) {
-        fixPct = 1
+      // fixPct: 充能沙漏不重新计算, 恒为1 (照搬 miao-plugin key!== 'recharge' 分支)
+      if (mainKey !== 'recharge') {
+        const mainWeight = currWeights[scoreKey] || 0
+        const posMaxW = maxWeightByPos[pos] || 100
+        fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
+        // 攻/生/防 主词条权重≥75 视为可用 (照搬 miao-plugin)
+        if (['atk', 'hp', 'def'].includes(scoreKey) && mainWeight >= 75) {
+          fixPct = 1
+        }
       }
     }
 
@@ -1410,7 +1412,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.0'
+      version: '1.12.1'
     }
 
     try {
@@ -1430,7 +1432,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.0`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.1`
             }
           }
         }
