@@ -271,6 +271,22 @@ function loadCharDetailAttr (charName) {
   }
 }
 
+// ---- 角色基础属性缓存 (从单个角色data.json读取, 照搬 miao-plugin char.baseAttr) ----
+let _charBaseAttrCache = {}
+function getCharBaseAttr (charName) {
+  if (_charBaseAttrCache[charName]) return _charBaseAttrCache[charName]
+  try {
+    const detailPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'data.json')
+    if (fs.existsSync(detailPath)) {
+      const detailData = JSON.parse(fs.readFileSync(detailPath, 'utf-8'))
+      const ba = detailData.baseAttr || null
+      if (ba) _charBaseAttrCache[charName] = ba
+      return ba
+    }
+  } catch (_) {}
+  return null
+}
+
 // ---- 判断元素属性键 (照搬 miao-plugin Format.isElem) ----
 const _elemKeys = ['pyro', 'hydro', 'anemo', 'electro', 'cryo', 'geo', 'dendro', 'phy']
 function isElemKey (key) {
@@ -573,7 +589,7 @@ function getEffectiveStats (charName) {
 // 为每个有效词条计算 mark (每展示值单位的评分贡献) 与 fixWeight (单次max成长的评分贡献)
 function _buildCharMarkTable (charName, charMeta) {
   const weights = _usefulAttr[charName] || {}
-  const baseAttr = charMeta?.baseAttr || { hp: 14000, atk: 230, def: 700 }
+  const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
   const markMap = {}
 
   // 各位置可用主词条列表
@@ -664,7 +680,7 @@ function _computePosMaxMark (markMap) {
       }
       if (bestKey) {
         banAttr = bestKey
-        mMark = markMap[bestKey].weight
+        mMark = markMap[bestKey].fixWeight
         totalMark += bestFixW * 2 // 主词条贡献 (等效约2次max成长)
       }
     }
@@ -1412,7 +1428,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.1'
+      version: '1.12.2'
     }
 
     try {
@@ -1432,7 +1448,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.1`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.2`
             }
           }
         }

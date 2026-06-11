@@ -12,7 +12,7 @@ import { Restart } from '../../other/restart.js'
 const _pluginDir = path.resolve(process.cwd(), 'plugins/artifacts-plugin')
 
 /** 插件版本号 */
-const PLUGIN_VERSION = '1.12.1'
+const PLUGIN_VERSION = '1.12.2'
 
 function getVersion () {
   try {
