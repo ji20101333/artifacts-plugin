@@ -569,6 +569,124 @@ function getEffectiveStats (charName) {
   return ['atk', 'cpct', 'cdmg']
 }
 
+// ---- 构建角色圣遗物评分系数表 (照搬 miao-plugin ArtisMarkCfg.getCfg) ----
+// 为每个有效词条计算 mark (每展示值单位的评分贡献) 与 fixWeight (单次max成长的评分贡献)
+function _buildCharMarkTable (charName, charMeta) {
+  const weights = _usefulAttr[charName] || {}
+  const baseAttr = charMeta?.baseAttr || { hp: 14000, atk: 230, def: 700 }
+  const markMap = {}
+
+  // 各位置可用主词条列表
+  const mainAttrByPos = {
+    3: ['atk', 'def', 'hp', 'mastery', 'recharge'],
+    4: ['atk', 'def', 'hp', 'mastery', 'dmg', 'phy'],
+    5: ['atk', 'def', 'hp', 'mastery', 'heal', 'cpct', 'cdmg']
+  }
+  // 可用副词条列表 (照搬 extra.js subAttr)
+  const subAttrList = ['atk', 'atkPlus', 'def', 'defPlus', 'hp', 'hpPlus', 'mastery', 'recharge', 'cpct', 'cdmg']
+
+  for (const [key, cfg] of Object.entries(_attrMap)) {
+    if (!cfg.value) continue // 跳过无副词条值的属性 (仅有主词条的: 实际上都有value)
+    const baseKey = cfg.base || '' // atkPlus→atk, hpPlus→hp, defPlus→def
+    const weight = weights[baseKey || key]
+    if (!weight || weight <= 0) continue
+
+    if (!baseKey) {
+      // 普通词条: mark = weight / maxRollValue (照搬 miao-plugin)
+      markMap[key] = {
+        mark: weight / cfg.value,
+        fixWeight: weight,
+        weight,
+        maxRoll: cfg.value
+      }
+    } else {
+      // 小词条→等效百分比评分 (照搬 miao-plugin ArtisMarkCfg)
+      const pctCfg = _attrMap[baseKey]
+      if (!pctCfg?.value) continue
+      // plus: 羽毛311 + 武器基础 ≈ 520 (照搬 miao-plugin)
+      const plus = baseKey === 'atk' ? 520 : 0
+      const baseVal = baseAttr[baseKey] || 1
+      // fixWeight = weight × flatMax / pctMax / (base + plus) × 100
+      const fixWeight = weight * cfg.value / pctCfg.value / (baseVal + plus) * 100
+      markMap[key] = {
+        mark: fixWeight / cfg.value, // = weight / pctMax / (base + plus) × 100
+        fixWeight,
+        weight,
+        maxRoll: cfg.value,
+        isFlat: true,
+        baseKey
+      }
+    }
+  }
+
+  // 各位置主词条最大权重 (用于 fixPct 归一化)
+  const maxWeightByPos = {}
+  for (let pos = 3; pos <= 5; pos++) {
+    let maxW = 0
+    for (const mk of mainAttrByPos[pos]) {
+      const m = markMap[mk]
+      if (m && m.weight > maxW) maxW = m.weight
+    }
+    maxWeightByPos[pos] = maxW || 100
+  }
+
+  markMap._mainAttrByPos = mainAttrByPos
+  markMap._subAttrList = subAttrList
+  markMap._maxWeightByPos = maxWeightByPos
+  return markMap
+}
+
+// ---- 计算各位置理论最高分 (照搬 miao-plugin ArtisMark.getMaxMark) ----
+// 模型: 4初始副词条 + 5次强化全中最佳词条 → 最佳词条 ×6 + 其余3个各 ×1
+// 沙/杯/头: 最优主词条贡献 fixWeight×2 (因 mainMaxRoll/maxRoll/4 ≈ 2 次成长等效)
+function _computePosMaxMark (markMap) {
+  const posMaxMark = {}
+  const mainAttrByPos = markMap._mainAttrByPos
+  const subAttrList = markMap._subAttrList
+
+  for (let pos = 1; pos <= 5; pos++) {
+    let totalMark = 0
+    let mMark = 0
+    let banAttr = ''
+
+    if (pos === 1) {
+      banAttr = 'hpPlus' // 生之花固定, 排除小生命副词条
+    } else if (pos === 2) {
+      banAttr = 'atkPlus' // 死之羽固定, 排除小攻击副词条
+    } else {
+      // 选择 fixWeight 最高的可用主词条
+      const available = mainAttrByPos[pos] || []
+      let bestFixW = 0
+      let bestKey = ''
+      for (const mk of available) {
+        const m = markMap[mk]
+        if (m && m.fixWeight > bestFixW) { bestFixW = m.fixWeight; bestKey = mk }
+      }
+      if (bestKey) {
+        banAttr = bestKey
+        mMark = markMap[bestKey].weight
+        totalMark += bestFixW * 2 // 主词条贡献 (等效约2次max成长)
+      }
+    }
+
+    // 副词条: 取 fixWeight 最高的4个 (排除已禁选词条), 最佳×6 + 其余各×1
+    const subs = []
+    for (const sk of subAttrList) {
+      if (sk === banAttr) continue
+      const m = markMap[sk]
+      if (m) subs.push(m.fixWeight)
+    }
+    subs.sort((a, b) => b - a)
+    for (let i = 0; i < Math.min(4, subs.length); i++) {
+      totalMark += subs[i] * (i === 0 ? 6 : 1)
+    }
+
+    posMaxMark[pos] = totalMark || 1
+    posMaxMark['m' + pos] = mMark
+  }
+  return posMaxMark
+}
+
 // ---- 属性名称映射 ----
 const mainKeyNameMap = {
   hpPlus: '生命值', hp: '生命值%', atkPlus: '攻击力', atk: '攻击力%',
@@ -831,6 +949,11 @@ async function processArtifacts (uid, charName) {
   }
   const currWeights = _usefulAttr[charName] || {}
 
+  // ---- 构建角色评分系数表 & 位置理论最高分 (照搬 miao-plugin) ----
+  const markTable = _buildCharMarkTable(charName, charMeta)
+  const posMaxMark = _computePosMaxMark(markTable)
+  const maxWeightByPos = markTable._maxWeightByPos
+
   for (let pos = 1; pos <= 5; pos++) {
     const arti = artisData[pos]
     if (!arti || !arti.name) {
@@ -853,55 +976,74 @@ async function processArtifacts (uid, charName) {
       calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
     }
 
-    // ---- 新算法: 有效数 & 词条数 ----
-    // 有效数: 权重>0的副词条种类数 (无重复, 取值范围 0-4)
+    // ---- miao-plugin 评分公式 (照搬 ArtisMark.getMark + ArtisMarkCfg.getCfg) ----
+    // 有效数: 权重>0的副词条种类数
     const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
-    // 词条数: 权重>0的副词条的最终展示值 / 该词条平均每次成长展示值 的总和
-    // 小攻击/小防御/小生命: 先转为对应百分比 (除以角色基础属性) 再计算
+
+    // 副词条评分 & 词条数
     let upgradeCount = 0
-    let artiScore = 0
+    let subScore = 0
     for (const sh of subHistory) {
       const weightKey = getWeightKey(sh.key)
       const weightVal = currWeights[weightKey] || 0
       if (weightVal > 0) {
+        const mInfo = markTable[sh.key]
         let displayTotal = toDisplayValue(sh.key, sh.totalValue)
         let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
-        // 对齐值: 以暴伤为基准(=1), 如暴击≈2.0, 大攻击≈1.33
-        let alignment = _alignmentMap[sh.key] || 1
-        // 小攻击/小防御/小生命 → 等效大百分比 (乘以100对齐展示量级)
+
+        // 小攻击/小防御/小生命 → 等效大百分比 (词条数折合)
         if (sh.key === 'atkPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
           avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
-          alignment = _alignmentMap.atk || 1
         } else if (sh.key === 'hpPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
           avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
-          alignment = _alignmentMap.hp || 1
         } else if (sh.key === 'defPlus') {
           displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
           avgVal = _avgRollValue.def || toDisplayValue('def', 1)
-          alignment = _alignmentMap.def || 1
         }
-        // 词条数 (平均成长计)
-        const wordCount = displayTotal / avgVal
-        upgradeCount += wordCount
-        // liangshi-calc/miao 评分公式: displayValue × alignment × weight/100
-        artiScore += displayTotal * alignment * (weightVal / 100)
+        // 词条数: 展示值 / 平均成长值
+        upgradeCount += displayTotal / avgVal
+
+        // 评分: mark × displayValue (照搬 miao-plugin — 小词条的 mark 已包含等效转换)
+        if (mInfo) {
+          subScore += mInfo.mark * toDisplayValue(sh.key, sh.totalValue)
+        }
       }
     }
-    // 主词条对齐值: 基于 miao-plugin fixPct 逻辑
-    // 花/羽 fixPct 恒为 1; 沙/杯/头 若主词条权重>0则 1, 否则 0.5
-    let mainStatAlignment = 1
+
+    // 主词条评分 (沙/杯/头, 照搬 miao-plugin ArtisMark.getMark)
+    let mainScore = 0
+    let fixPct = 1
     if (pos >= 3) {
       const mainWeightKey = getWeightKey(mainKey)
+      // 元素伤害杯映射 (照搬 miao-plugin: 同色→dmg, 法尔伽id=10000128 所有异色→风伤)
+      let scoreKey = mainKey
+      if (pos === 4 && isElemKey(mainKey)) {
+        if (mainKey === elem || charMeta?.id === 10000128) {
+          scoreKey = 'dmg'
+        }
+      }
+      const mInfo = markTable[scoreKey]
+      if (mInfo) {
+        mainScore = mInfo.mark * mainVal / 4
+      }
+      // fixPct: 主词条对齐系数 (照搬 miao-plugin)
       const mainWeight = currWeights[mainWeightKey] || 0
-      mainStatAlignment = mainWeight > 0 ? 1 : 0.5
+      const posMaxW = maxWeightByPos[pos] || 100
+      fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
+      // 攻/生/防 主词条权重≥75 视为可用 (照搬 miao-plugin)
+      if (['atk', 'hp', 'def'].includes(mainWeightKey) && mainWeight >= 75) {
+        fixPct = 1
+      }
     }
-    artiScore = artiScore * mainStatAlignment
+
+    // 最终评分: (主词条分 + 副词条分) × (1 + fixPct) / 2 / posMaxMark × 66
+    let artiScore = (mainScore + subScore) * (1 + fixPct) / 2 / (posMaxMark[pos] || 1) * 66
     upgradeCount = Math.round(upgradeCount * 100) / 100
     artiScore = Math.round(artiScore * 100) / 100
 
-    // 单件圣遗物评级 (与汇总评级同一规则: D<7, C<14, B<21, A<28, S<35, SS<42, SSS<49, ACE<56, MAX≥56)
+    // 单件圣遗物评级 (照搬 miao-plugin ArtisMark.getMarkClass)
     const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
     let artiRating = 'D'
     for (const [grade, threshold] of scoreMap) {
@@ -1268,7 +1410,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.20'
+      version: '1.12.0'
     }
 
     try {
@@ -1288,7 +1430,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.20`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.0`
             }
           }
         }

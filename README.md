@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![English](https://img.shields.io/badge/README-English-blue)](./README.en.md)
-[![Version](https://img.shields.io/badge/version-1.11.20-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.12.0-brightgreen)]()
 
 圣遗物成长值面板插件 - 基于 Miao-Yunzai（TRSS-Yunzai），展示角色圣遗物初始值及副词条成长历史。
 
@@ -23,10 +23,10 @@
 
 返回一张图片，展示角色所有圣遗物的初始值及成长历史：
 - 圣遗物图标 + 等级
-- 主词条
-- 副词条成长历史（格式：`初始值+第一次成长+...+最后一次成长=最终值`）
-- 当前词条数
-- 总有效词条数（基于 liangshi-calc 的角色有效词条定义）
+- 主词条 + 副词条成长历史（格式：`初始值+第一次成长+...+最后一次成长=最终值`）
+- 圣遗物评分 & 评级（D~MAX，照搬 miao-plugin 评分公式）
+- 词条数 & 有效词条数（基于 liangshi-calc 的角色有效词条定义）
+- 角色属性面板 + 武器详情 + 有效词条汇总表
 
 若无角色/UID 绑定的圣遗物数据，返回相应错误提示。
 
