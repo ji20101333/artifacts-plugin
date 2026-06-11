@@ -22,15 +22,47 @@
 - `#雷电将军圣遗物成长值面板`
 
 返回一张图片，展示角色所有圣遗物的初始值及成长历史：
-- 圣遗物图标 + 等级
-- 主词条 + 副词条成长历史（格式：`初始值+第一次成长+...+最后一次成长=最终值`）
-- 圣遗物评分 & 评级（D~MAX，照搬 miao-plugin 评分公式）
-- 词条数 & 有效词条数（基于 liangshi-calc 的角色有效词条定义）
-- 角色属性面板 + 武器详情 + 有效词条汇总表
+
+- **角色头部区**：角色立绘、UID、等级、命座、天赋等级
+- **角色属性面板**：生命/攻击/防御/精通/暴击/暴伤/充能/增伤 的 总值（白值+绿值），标注有效词条权重
+- **武器卡片**：武器图标、名称、星级、精炼等级、基础攻击力、副词条、武器特效描述
+- **圣遗物成长值**（5 个部位横向排列）：
+  - 圣遗物图标 + 等级
+  - 部位名称 + 主词条名 + 主词条值
+  - 副词条成长历史（格式：`初始值+第一次成长+...+最后一次成长=最终值`）
+  - 强化命中次数（≥4 次时换行显示）
+  - 初始词条数 / 有效词条数 / 总升级词条数
+- **圣遗物评分 & 评级**（SSS/ACE/MAX 等，照搬 miao-plugin 评分公式）
+- **有效词条汇总表**：总有效词条数 + 各词条分类计数（基于 liangshi-calc 的角色有效词条定义）
 
 若无角色/UID 绑定的圣遗物数据，返回相应错误提示。
 
-### 2. 插件更新
+### 2. 圣遗物评分公式
+
+从 v1.12.0 起，评分公式完全照搬 [miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git) 的 `ArtisMark.js` / `ArtisMarkCfg.js`：
+
+- **核心原理**：`mark = weight / maxRollValue` — 权重 100 的词条一次最大强化 = 100 原始分
+- **副词条得分**：`Σ(mark × displayValue)`，按有效副词条累加
+- **主词条得分**：`mark × mainValue / 4`（仅 3-5 号位）
+- **fixPct**：`min(1, weight[主词条] / 该部位最大权重)`，惩罚非标配主词条（如攻击杯而非元素杯）
+- **部位归一化**：`(主词条分 + 副词条分) × (1 + fixPct) / 2 / posMaxMark × 66`
+- **角色适配**：自动加载各角色专属权重（`artis.js`）、武器精炼加成、绝缘4/西风等套装修正
+
+**评分评级阈值**（单件 → 五件总分）：
+
+| 评级 | 单件 | 总分 |
+|------|------|------|
+| D    | < 7  | < 35 |
+| C    | < 14 | < 70 |
+| B    | < 21 | < 105 |
+| A    | < 28 | < 140 |
+| S    | < 35 | < 175 |
+| SS   | < 42 | < 210 |
+| SSS  | < 49 | < 245 |
+| ACE  | < 56 | < 280 |
+| MAX  | ≥ 56 | ≥ 280 |
+
+### 3. 插件更新
 
 指令：`#圣遗物成长值插件更新` / `#圣遗物成长值插件强制更新`
 
@@ -40,6 +72,8 @@
 - **强制更新**：`git fetch + git reset --hard origin/master` 强制同步远程仓库，丢弃本地修改
 
 仅 Bot 主人可用。
+
+---
 
 ## 安装
 
@@ -51,11 +85,15 @@
 git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/artifacts-plugin/
 ```
 
+---
+
 ## 依赖
 
-- **miao-plugin**：提供圣遗物词条映射数据、渲染基础设施、UID 绑定查询
+- **miao-plugin**：提供圣遗物词条映射数据、角色基础属性、渲染基础设施、UID 绑定查询
 - **liangshi-calc**：提供角色有效词条定义
 - **TRSS-Yunzai**（Miao-Yunzai）：Bot 框架
+
+---
 
 ## 许可证
 
@@ -68,6 +106,7 @@ git clone --depth=1 https://gitee.com/ji20101333/artifacts-plugin.git ./plugins/
 - **[miao-plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git)** — MIT License, Copyright (c) 2023 Yoimiya
   - 圣遗物词条映射数据（`attrIdMap`、`mainIdMap`、`attrMap`）
   - 角色别名数据
+  - 圣遗物评分公式（`ArtisMark.js`、`ArtisMarkCfg.js`）
   - 渲染基础设施
 
 - **[liangshi-calc](https://gitee.com/liangshi233/liangshi-calc.git)** — MIT License, Copyright (c) 2024 liangshi
