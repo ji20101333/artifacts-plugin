@@ -932,6 +932,9 @@ async function processArtifacts (uid, charName) {
   // 统一排序
   summaryItems.sort((a, b) => b.count - a.count)
 
+  // 移除伤害加成行 (与角色面板一致, 不显示dmg/phy)
+  const summaryFiltered = summaryItems.filter(item => item.key !== 'dmg' && item.key !== 'phy')
+
   // 计算总计
   let totalWordCount = 0
   let totalEffectiveCount = 0
@@ -944,7 +947,7 @@ async function processArtifacts (uid, charName) {
   const effectiveSummary = {
     totalEffectiveCount,
     totalWordCount: Math.round(totalWordCount * 100) / 100,
-    items: summaryItems.length > 0 ? summaryItems : [{ key: '', shortName: '无有效词条', count: 0 }]
+    items: summaryFiltered.length > 0 ? summaryFiltered : [{ key: '', shortName: '无有效词条', count: 0 }]
   }
 
   // ---- 构建角色面板数值 (照搬 miao-plugin ProfileDetail.render) ----
@@ -1209,7 +1212,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.1'
+      version: '1.11.2'
     }
 
     try {
@@ -1229,7 +1232,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.1`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.2`
             }
           }
         }
