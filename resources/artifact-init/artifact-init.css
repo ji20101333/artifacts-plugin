@@ -321,7 +321,7 @@ body { width: 600px; }
 }
 
 /* 主信息区 */
-.arti-row-main { flex: 1; min-width: 0; padding-right: 40px; }
+.arti-row-main { flex: 1; min-width: 0; padding-right: 60px; }
 .arti-pos-label { font-size: 14px; color: #fff; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
 .arti-pos-label .arti-score { font-size: 15px; font-weight: bold; }
 .arti-name { font-size: 12px; color: #d3bc8e; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
@@ -332,7 +332,7 @@ body { width: 600px; }
 .no-arti { font-size: 12px; color: rgba(255,255,255,0.35); }
 
 /* 副词条成长 (横向紧凑排列) */
-.arti-row-subs { flex: 1.5; min-width: 0; transform: translateX(-30px); }
+.arti-row-subs { flex: 1.5; min-width: 0; transform: translateX(-60px); }
 .sub-item { font-size: 12px; line-height: 1.6; }
 .sub-key { color: rgba(255,255,255,0.55); margin-right: 4px; }
 .sub-formula { color: #a0d6ff; }
