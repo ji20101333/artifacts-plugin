@@ -847,9 +847,11 @@ async function processArtifacts (uid, charName) {
     // 词条数: 权重>0的副词条的最终展示值 / 该词条平均每次成长展示值 的总和
     // 小攻击/小防御/小生命: 先转为对应百分比 (除以角色基础属性) 再计算
     let upgradeCount = 0
+    let artiScore = 0
     for (const sh of subHistory) {
       const weightKey = getWeightKey(sh.key)
-      if ((currWeights[weightKey] || 0) > 0) {
+      const weightVal = currWeights[weightKey] || 0
+      if (weightVal > 0) {
         let displayTotal = toDisplayValue(sh.key, sh.totalValue)
         let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
         // 小攻击/小防御/小生命 → 等效大百分比 (乘以100对齐展示量级)
@@ -863,10 +865,13 @@ async function processArtifacts (uid, charName) {
           displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
           avgVal = _avgRollValue.def || toDisplayValue('def', 1)
         }
-        upgradeCount += displayTotal / avgVal
+        const wordCount = displayTotal / avgVal
+        upgradeCount += wordCount
+        artiScore += wordCount * (weightVal / 100)
       }
     }
     upgradeCount = Math.round(upgradeCount * 100) / 100
+    artiScore = Math.round(artiScore * 100) / 100
 
     const img = findArtifactImage(name)
 
@@ -877,7 +882,7 @@ async function processArtifacts (uid, charName) {
       pos, empty: false, name, level, star, img,
       mainKey, mainValText: formatMainValue(mainKey, mainVal),
       mainKeyName: mainKeyNameMap[mainKey] || mainKey,
-      subHistory, upgradeCount, effectiveCount, initialCount,
+      subHistory, upgradeCount, effectiveCount, initialCount, artiScore,
       posName: posNames[pos] || `位置${pos}`
     })
   }
@@ -938,14 +943,17 @@ async function processArtifacts (uid, charName) {
   // 计算总计
   let totalWordCount = 0
   let totalEffectiveCount = 0
+  let totalScore = 0
   for (const arti of artisList) {
     if (arti.empty) continue
     totalEffectiveCount += arti.effectiveCount
     totalWordCount += arti.upgradeCount
+    totalScore += arti.artiScore
   }
+  totalScore = Math.round(totalScore * 100) / 100
 
-  // 圣遗物总分 & 评级 (照搬 miao-plugin ArtisMark.getMarkClass)
-  const totalMark = Math.round(totalWordCount * 100) / 100
+  // 圣遗物总分 & 评级 (liangshi-calc 加权评分)
+  const totalMark = totalScore
   const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
   let markClass = 'D'
   for (const [grade, threshold] of scoreMap) {
@@ -955,7 +963,7 @@ async function processArtifacts (uid, charName) {
 
   const effectiveSummary = {
     totalEffectiveCount,
-    totalWordCount: totalMark,
+    totalWordCount: Math.round(totalWordCount * 100) / 100,
     totalMark,
     markClass,
     items: summaryFiltered.length > 0 ? summaryFiltered : [{ key: '', shortName: '无有效词条', count: 0 }]
@@ -1223,7 +1231,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.3'
+      version: '1.11.4'
     }
 
     try {
@@ -1243,7 +1251,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.3`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.4`
             }
           }
         }
