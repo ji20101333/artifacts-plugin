@@ -879,6 +879,14 @@ async function processArtifacts (uid, charName) {
     upgradeCount = Math.round(upgradeCount * 100) / 100
     artiScore = Math.round(artiScore * 100) / 100
 
+    // 单件圣遗物评级 (与汇总评级同一规则: D<7, C<14, B<21, A<28, S<35, SS<42, SSS<49, ACE<56, MAX≥56)
+    const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
+    let artiRating = 'D'
+    for (const [grade, threshold] of scoreMap) {
+      if (artiScore < threshold) { artiRating = grade; break }
+      artiRating = grade
+    }
+
     const img = findArtifactImage(name)
 
     // 初始词条数: 总成长次数-1, 5★适用, 4★及以下不显示
@@ -889,7 +897,7 @@ async function processArtifacts (uid, charName) {
       pos, empty: false, name, level, star, img,
       mainKey, mainValText: formatMainValue(mainKey, mainVal),
       mainKeyName: mainKeyNameMap[mainKey] || mainKey,
-      subHistory, upgradeCount, effectiveCount, initialCount, artiScore,
+      subHistory, upgradeCount, effectiveCount, initialCount, artiScore, artiRating,
       posName: posNames[pos] || `位置${pos}`
     })
   }
@@ -1238,7 +1246,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.11.7'
+      version: '1.11.8'
     }
 
     try {
@@ -1258,7 +1266,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.7`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.11.8`
             }
           }
         }

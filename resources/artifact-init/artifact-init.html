@@ -153,8 +153,8 @@
 
         <!-- 圣遗物名称 + 主词条 -->
         <div class="arti-row-main">
-          <div class="arti-pos-label">{{arti.posName}}</div>
-          <div class="arti-name">{{arti.name}}</div>
+          <div class="arti-pos-label"><span>{{arti.posName}}</span><span class="arti-score">{{arti.artiScore}}</span></div>
+          <div class="arti-name"><span>{{arti.name}}</span><span class="arti-rating mark-{{arti.artiRating}}">{{arti.artiRating}}</span></div>
           <div class="arti-main-stat">{{arti.mainKeyName}} <span class="main-val">+{{arti.mainValText}}</span></div>
           <div class="arti-counts-inline">{{if arti.initialCount > 0}}{{arti.initialCount}}初始 · {{/if}}{{arti.effectiveCount}}有效 · {{arti.upgradeCount}}词条</div>
         </div>
