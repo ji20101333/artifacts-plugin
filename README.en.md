@@ -28,7 +28,7 @@ Returns an image showing the character panel and all artifact initial values and
 - **Weapon Card**: Weapon icon, name, rarity, refinement rank, base ATK, secondary stat, weapon passive description
 - **Artifacts**:
   - Artifact basic info
-  - Substat growth history (format: `initial+first roll+...+last roll=final value`)
+  - Substat growth history (format: `initial+first roll+...+last roll=final value`, compatible with both attrIds encoding formats)
   - Enhancement hit count
   - Initial substat count / Effective substat type count / Effective substat count
 - **Artifact Score & Rating** (referencing Miao-Plugin scoring and rating rules)
