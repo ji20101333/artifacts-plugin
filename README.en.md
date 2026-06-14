@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![中文](https://img.shields.io/badge/README-中文-orange)](./README.md)
-[![Version](https://img.shields.io/badge/version-1.12.5-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.12.6-brightgreen)]()
 
 Artifact Growth Value Panel Plugin - Based on Miao-Yunzai (TRSS-Yunzai). Displays character artifact initial values and substat growth history.
 

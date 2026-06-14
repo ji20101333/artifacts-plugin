@@ -548,17 +548,20 @@ function calcSubstatHistory (attrIds) {
 
   const groups = {}
   const orderedKeys = []
+  const seenKeys = new Set()  // 追踪每种副词条的首次出现 (首次=初始值, 后续=成长值)
 
   for (let i = 0; i < attrIds.length; i++) {
     const id = attrIds[i]
     const cfg = _attrIdMap[id]
     if (!cfg) continue
     const { key, value } = cfg
+    const isFirst = !seenKeys.has(key)
     if (!groups[key]) {
       groups[key] = { key, entries: [], total: 0 }
       orderedKeys.push(key)
     }
-    groups[key].entries.push({ value, isInitial: i < 4 })
+    if (isFirst) seenKeys.add(key)
+    groups[key].entries.push({ value, isInitial: isFirst })
     groups[key].total += value
   }
 
@@ -1522,7 +1525,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.5'
+      version: '1.12.6'
     }
 
     try {
@@ -1542,7 +1545,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.5`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.6`
             }
           }
         }
