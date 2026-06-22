@@ -390,6 +390,13 @@ function formatComma (num, fix = 0) {
 function formatPct (num, fix = 1) {
   return (num * 1).toFixed(fix) + '%'
 }
+/** 保留三位有效数字 */
+function to3SigFigs (num) {
+  if (!num || num === 0) return 0
+  const d = Math.ceil(Math.log10(Math.abs(num)))
+  const p = Math.max(0, 3 - d)
+  return Math.round(num * Math.pow(10, p)) / Math.pow(10, p)
+}
 
 // ---- AttrData 式属性计算 (参考 miao-plugin models/attr/AttrData.js) ----
 const _baseAttrKeys = ['atk', 'def', 'hp', 'mastery', 'recharge', 'cpct', 'cdmg', 'dmg', 'phy', 'heal', 'shield', 'coloringDmg']
@@ -1162,7 +1169,7 @@ async function processArtifacts (uid, charName) {
 
     // 最终评分: (主词条分 + 副词条分) × (1 + fixPct) / 2 / posMaxMark × 66
     let artiScore = (mainScore + subScore) * (1 + fixPct) / 2 / (posMaxMark[pos] || 1) * 66
-    upgradeCount = Math.round(upgradeCount * 100) / 100
+    upgradeCount = to3SigFigs(upgradeCount)
     artiScore = Math.round(artiScore * 100) / 100
 
     // 单件圣遗物评级 (参考 miao-plugin ArtisMark.getMarkClass)
@@ -1265,7 +1272,7 @@ async function processArtifacts (uid, charName) {
 
   const effectiveSummary = {
     totalEffectiveCount,
-    totalWordCount: Math.round(totalWordCount * 100) / 100,
+    totalWordCount: to3SigFigs(totalWordCount),
     totalMark,
     markClass,
     items: summaryFiltered.length > 0 ? summaryFiltered : [{ key: '', shortName: '无有效词条', count: 0 }]
@@ -1533,7 +1540,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.7'
+      version: '1.12.8'
     }
 
     try {
@@ -1553,7 +1560,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.7`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.8`
             }
           }
         }
