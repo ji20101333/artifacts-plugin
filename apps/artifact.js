@@ -980,10 +980,18 @@ async function processArtifacts (uid, charName) {
       }
     }
 
-    for (let i = 0; i < keys.length; i++) {
+    // hp/atk/def 基础值 (keys[0-2]), 线性插值
+    addAttr(attrCtx, keys[0], getLvData(0, false), true)
+    addAttr(attrCtx, keys[1], getLvData(1, false), true)
+    addAttr(attrCtx, keys[2], getLvData(2, false), true)
+    // 突破属性 (keys[3], 如 cdmg/cpct/dmg/mastery/recharge), 阶梯插值, 加入基础值
+    if (keys.length > 3) {
+      addAttr(attrCtx, keys[3], getLvData(3, true), !/(hp|atk|def)/.test(keys[3]))
+    }
+    // 其余额外属性 (如果有)
+    for (let i = 4; i < keys.length; i++) {
       const k = keys[i]
       const v = getLvData(i, !/hp|atk|def/.test(k.replace('Base', '')) && k !== 'hpBase' && k !== 'atkBase' && k !== 'defBase')
-      // 角色突破属性 (如 cdmg, cpct, dmg 等) 不加 isBase=true
       addAttr(attrCtx, k, v, /Base$/.test(k))
     }
   } else {
@@ -1525,7 +1533,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.6'
+      version: '1.12.7'
     }
 
     try {
@@ -1545,7 +1553,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.6`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.7`
             }
           }
         }
