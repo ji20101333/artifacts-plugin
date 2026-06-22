@@ -29,8 +29,8 @@ Returns an image showing the character panel and all artifact initial values and
 - **Artifacts**:
   - Artifact basic info
   - Substat growth history (format: `initial+first roll+...+last roll=final value`, compatible with both attrIds encoding formats)
-  - Enhancement hit count
-  - Initial substat count / Effective substat type count / Effective substat count
+  - Enhancement hit count (line break at ≥4 hits)
+  - Initial substat count / Effective substat type count / Total roll count (3 significant figures)
 - **Artifact Score & Rating** (referencing Miao-Plugin scoring and rating rules)
 - **Effective Substat Summary Table**: Total effective substat count + per-substat count (based on liangshi-calc character effective stat definitions)
 
