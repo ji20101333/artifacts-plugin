@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![English](https://img.shields.io/badge/README-English-blue)](./README.en.md)
-[![Version](https://img.shields.io/badge/version-1.12.8-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.12.9-brightgreen)]()
 
 圣遗物成长值面板插件 - 基于 Miao-Yunzai（TRSS-Yunzai），展示角色圣遗物初始值及副词条成长历史。
 

@@ -347,6 +347,7 @@ body { width: 600px; }
   background: #c0392b;
   padding: 1px 8px; border-radius: 4px;
   margin-top: 3px;
+  white-space: nowrap;
 }
 
 /* 底部 */
