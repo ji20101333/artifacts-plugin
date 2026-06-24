@@ -701,8 +701,13 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
 // adjustedWeights: 已经过武器/套装/角色规则调整的最终权重
 function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
-  // 以 _usefulAttr 为基准, adjustedWeights 覆盖 (防止 adjustedWeights 为空对象等边缘情况)
-  const weights = { ...(_usefulAttr[charName] || {}), ...(adjustedWeights || {}) }
+  // 以 _usefulAttr 为基准, 仅合并非 undefined 的 adjustedWeights (防止 undefined 覆盖有效权重)
+  const baseW = _usefulAttr[charName] || {}
+  const adjW = adjustedWeights || {}
+  const weights = { ...baseW }
+  for (const k of Object.keys(adjW)) {
+    if (adjW[k] !== undefined) weights[k] = adjW[k]
+  }
 
   const markMap = {}
 
@@ -760,6 +765,10 @@ function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   markMap._subAttrList = subAttrList
   markMap._maxWeightByPos = maxWeightByPos
   markMap._weights = weights
+  // 诊断: 如果角色有 mastery 权重但未在 markMap 中, 警告
+  if ((weights.mastery || 0) > 0 && !markMap['mastery']) {
+    if (logger?.warn) logger.warn('[artifacts-plugin] 警告: ' + charName + ' mastery权重=' + weights.mastery + ' 但未纳入markMap')
+  }
   return markMap
 }
 
@@ -1550,7 +1559,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.11'
+      version: '1.12.12'
     }
 
     try {
@@ -1570,7 +1579,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.11`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.12`
             }
           }
         }
