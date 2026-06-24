@@ -1124,6 +1124,12 @@ async function processArtifacts (uid, charName) {
 
     // ---- miao-plugin 评分公式 (参考 ArtisMark.getMark + ArtisMarkCfg.getCfg) ----
     // 有效数: 权重>0的副词条种类数
+    if (charName === '玛薇卡' && pos === 2) {
+      console.log('[DEBUG 玛薇卡-羽毛] currWeights keys:', Object.keys(currWeights).filter(k => currWeights[k] > 0))
+      console.log('[DEBUG 玛薇卡-羽毛] subHistory keys:', subHistory.map(sh => sh.key + ':' + sh.totalValue))
+      subHistory.forEach(sh => console.log('[DEBUG] ' + sh.key + ' -> weightKey=' + getWeightKey(sh.key) + ' weight=' + (currWeights[getWeightKey(sh.key)] || 0)))
+      console.log('[DEBUG 玛薇卡-羽毛] effectiveCount:', subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length)
+    }
     const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
 
     // 副词条评分 & 词条数
