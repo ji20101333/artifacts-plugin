@@ -1,6 +1,6 @@
 {
   "name": "artifacts-plugin",
-  "version": "1.12.10",
+  "version": "1.12.11",
   "description": "Miao-Yunzai 圣遗物成长值面板插件 - 展示角色圣遗物初始值及成长历史",
   "type": "module",
   "main": "index.js",

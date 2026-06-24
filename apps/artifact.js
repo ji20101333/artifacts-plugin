@@ -701,7 +701,8 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
 // adjustedWeights: 已经过武器/套装/角色规则调整的最终权重
 function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
-  const weights = adjustedWeights || _usefulAttr[charName] || {}
+  // 以 _usefulAttr 为基准, adjustedWeights 覆盖 (防止 adjustedWeights 为空对象等边缘情况)
+  const weights = { ...(_usefulAttr[charName] || {}), ...(adjustedWeights || {}) }
 
   const markMap = {}
 
@@ -1549,7 +1550,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.10'
+      version: '1.12.11'
     }
 
     try {
@@ -1569,7 +1570,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.10`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.11`
             }
           }
         }
