@@ -587,10 +587,19 @@ function calcSubstatHistory (attrIds) {
 
 // ---- 获取角色有效词条 ----
 function getEffectiveStats (charName) {
-  if (!_mainAttrData) return ['atk', 'cpct', 'cdmg']
+  if (!_mainAttrData) {
+    // fallback: 从 artis-mark.js 获取权重>0的词条
+    const w = _usefulAttr[charName] || {}
+    return Object.keys(w).filter(k => w[k] > 0 && k !== 'dmg' && k !== 'phy')
+  }
   if (_mainAttrData[charName]) return _mainAttrData[charName].split(',')
   for (const key of Object.keys(_mainAttrData)) {
     if (key.startsWith(charName + '/')) return _mainAttrData[key].split(',')
+  }
+  // fallback: 从 artis-mark.js 获取权重>0的词条
+  const w = _usefulAttr[charName] || {}
+  if (Object.keys(w).length > 0) {
+    return Object.keys(w).filter(k => w[k] > 0 && k !== 'dmg' && k !== 'phy')
   }
   return ['atk', 'cpct', 'cdmg']
 }
@@ -1540,7 +1549,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.9'
+      version: '1.12.10'
     }
 
     try {
@@ -1560,7 +1569,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.9`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.10`
             }
           }
         }
