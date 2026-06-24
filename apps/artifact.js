@@ -617,6 +617,7 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
 
   // 默认权重调整 (参考 miao-plugin ArtisMarkCfg.def 函数)
   const applyDefaultAdjustments = (weights) => {
+    if (weights.mastery !== undefined && weights.mastery !== 85) console.log('[DEBUG applyDefaults ENTRY] mastery=' + weights.mastery + ' wn=' + wn)
     // 武器配置 (参考 weaponCfg)
     const weaponCfg = {
       '磐岩结绿': { attr: 'hp', max: 30, min: 15 },
@@ -624,9 +625,11 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
       '薙草之稻光': { attr: 'recharge' },
       '护摩之杖': { attr: 'hp', max: 18, min: 10 }
     }
+    if (weights.mastery === 0 && wn) console.log('[DEBUG applyDefaults] BEFORE weaponCfg: wn=' + wn + ' mastery=0')
     if ((weights.atk || 0) > 0 && weaponCfg[wn]) {
       const wCfg = weaponCfg[wn]
       const orig = weights[wCfg.attr] || 0
+      console.log('[DEBUG applyDefaults] weaponCfg matched: wn=' + wn + ' attr=' + wCfg.attr + ' orig=' + orig)
       if (orig !== 100) {
         const maxAffix = wCfg.max || 20
         const minAffix = wCfg.min || 10
@@ -634,6 +637,7 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
         weights[wCfg.attr] = Math.min(Math.round(orig + plus), 100)
       }
     }
+    if (weights.mastery === 0 && !weaponCfg[wn]) console.log('[DEBUG applyDefaults] AFTER weaponCfg: wn=' + wn + ' not in weaponCfg but mastery=0')
     // 绝缘4件套
     if ((setCounts['绝缘之旗印'] || 0) >= 4) {
       const maxW = Math.max(weights.atk || 0, weights.hp || 0, weights.def || 0, weights.mastery || 0)
@@ -722,7 +726,7 @@ function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   }
   const weights = { ...baseW }
   for (const k of Object.keys(adjW)) {
-    if (adjW[k] !== undefined) weights[k] = adjW[k]
+    if (adjW[k] !== undefined && adjW[k] > 0) weights[k] = adjW[k]
   }
   if (charName === '玛薇卡') {
     console.log('[DEBUG _buildCharMarkTable] final weights.mastery:', weights.mastery)
