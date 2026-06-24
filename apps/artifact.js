@@ -608,16 +608,10 @@ function getEffectiveStats (charName) {
 // 处理: 角色专属artis.js规则 → 武器权重调整 → 套装调整
 async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, attrCtx = null) {
   const rawWeights = _usefulAttr[charName] || {}
-  if (charName === '玛薇卡') {
-    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 rawWeights keys:', Object.keys(rawWeights))
-    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 rawWeights.mastery:', rawWeights.mastery)
-    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 _usefulAttr source:', Object.keys(_usefulAttr).includes('玛薇卡'))
-  }
   const wn = weaponName || ''
 
   // 默认权重调整 (参考 miao-plugin ArtisMarkCfg.def 函数)
   const applyDefaultAdjustments = (weights) => {
-    if (weights.mastery !== undefined && weights.mastery !== 85) console.log('[DEBUG applyDefaults ENTRY] mastery=' + weights.mastery + ' wn=' + wn)
     // 武器配置 (参考 weaponCfg)
     const weaponCfg = {
       '磐岩结绿': { attr: 'hp', max: 30, min: 15 },
@@ -625,11 +619,9 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
       '薙草之稻光': { attr: 'recharge' },
       '护摩之杖': { attr: 'hp', max: 18, min: 10 }
     }
-    if (weights.mastery === 0 && wn) console.log('[DEBUG applyDefaults] BEFORE weaponCfg: wn=' + wn + ' mastery=0')
     if ((weights.atk || 0) > 0 && weaponCfg[wn]) {
       const wCfg = weaponCfg[wn]
       const orig = weights[wCfg.attr] || 0
-      console.log('[DEBUG applyDefaults] weaponCfg matched: wn=' + wn + ' attr=' + wCfg.attr + ' orig=' + orig)
       if (orig !== 100) {
         const maxAffix = wCfg.max || 20
         const minAffix = wCfg.min || 10
@@ -637,7 +629,6 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
         weights[wCfg.attr] = Math.min(Math.round(orig + plus), 100)
       }
     }
-    if (weights.mastery === 0 && !weaponCfg[wn]) console.log('[DEBUG applyDefaults] AFTER weaponCfg: wn=' + wn + ' not in weaponCfg but mastery=0')
     // 绝缘4件套
     if ((setCounts['绝缘之旗印'] || 0) >= 4) {
       const maxW = Math.max(weights.atk || 0, weights.hp || 0, weights.def || 0, weights.mastery || 0)
@@ -702,12 +693,7 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
   }
 
   // 无artis.js时的默认行为: 使用原始权重 + 武器/套装调整
-  const result = applyDefaultAdjustments({ ...rawWeights })
-  if (charName === '玛薇卡') {
-    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 result keys:', Object.keys(result))
-    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 result.mastery:', result.mastery)
-  }
-  return result
+  return applyDefaultAdjustments({ ...rawWeights })
 }
 
 // ---- 构建角色圣遗物评分系数表 (参考 miao-plugin ArtisMarkCfg.getCfg) ----
@@ -718,19 +704,9 @@ function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   // 以 _usefulAttr 为基准, 仅合并非 undefined 的 adjustedWeights (防止 undefined 覆盖有效权重)
   const baseW = _usefulAttr[charName] || {}
   const adjW = adjustedWeights || {}
-  if (charName === '玛薇卡') {
-    console.log('[DEBUG _buildCharMarkTable] baseW keys:', Object.keys(baseW))
-    console.log('[DEBUG _buildCharMarkTable] baseW.mastery:', baseW.mastery)
-    console.log('[DEBUG _buildCharMarkTable] adjW keys:', Object.keys(adjW))
-    console.log('[DEBUG _buildCharMarkTable] adjW.mastery:', adjW.mastery)
-  }
   const weights = { ...baseW }
   for (const k of Object.keys(adjW)) {
     if (adjW[k] !== undefined && adjW[k] > 0) weights[k] = adjW[k]
-  }
-  if (charName === '玛薇卡') {
-    console.log('[DEBUG _buildCharMarkTable] final weights.mastery:', weights.mastery)
-    console.log('[DEBUG _buildCharMarkTable] final weights keys:', Object.keys(weights))
   }
 
   const markMap = {}
@@ -1148,12 +1124,6 @@ async function processArtifacts (uid, charName) {
 
     // ---- miao-plugin 评分公式 (参考 ArtisMark.getMark + ArtisMarkCfg.getCfg) ----
     // 有效数: 权重>0的副词条种类数
-    if (charName === '玛薇卡' && pos === 2) {
-      console.log('[DEBUG 玛薇卡-羽毛] currWeights keys:', Object.keys(currWeights).filter(k => currWeights[k] > 0))
-      console.log('[DEBUG 玛薇卡-羽毛] subHistory keys:', subHistory.map(sh => sh.key + ':' + sh.totalValue))
-      subHistory.forEach(sh => console.log('[DEBUG] ' + sh.key + ' -> weightKey=' + getWeightKey(sh.key) + ' weight=' + (currWeights[getWeightKey(sh.key)] || 0)))
-      console.log('[DEBUG 玛薇卡-羽毛] effectiveCount:', subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length)
-    }
     const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
 
     // 副词条评分 & 词条数
@@ -1589,7 +1559,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.12.12'
+      version: '1.12.13'
     }
 
     try {
@@ -1609,7 +1579,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.12`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.12.13`
             }
           }
         }
