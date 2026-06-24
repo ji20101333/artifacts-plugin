@@ -608,6 +608,11 @@ function getEffectiveStats (charName) {
 // 处理: 角色专属artis.js规则 → 武器权重调整 → 套装调整
 async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, attrCtx = null) {
   const rawWeights = _usefulAttr[charName] || {}
+  if (charName === '玛薇卡') {
+    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 rawWeights keys:', Object.keys(rawWeights))
+    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 rawWeights.mastery:', rawWeights.mastery)
+    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 _usefulAttr source:', Object.keys(_usefulAttr).includes('玛薇卡'))
+  }
   const wn = weaponName || ''
 
   // 默认权重调整 (参考 miao-plugin ArtisMarkCfg.def 函数)
@@ -693,7 +698,12 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
   }
 
   // 无artis.js时的默认行为: 使用原始权重 + 武器/套装调整
-  return applyDefaultAdjustments({ ...rawWeights })
+  const result = applyDefaultAdjustments({ ...rawWeights })
+  if (charName === '玛薇卡') {
+    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 result keys:', Object.keys(result))
+    console.log('[DEBUG _getAdjustedWeights] 玛薇卡 result.mastery:', result.mastery)
+  }
+  return result
 }
 
 // ---- 构建角色圣遗物评分系数表 (参考 miao-plugin ArtisMarkCfg.getCfg) ----
@@ -704,9 +714,19 @@ function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   // 以 _usefulAttr 为基准, 仅合并非 undefined 的 adjustedWeights (防止 undefined 覆盖有效权重)
   const baseW = _usefulAttr[charName] || {}
   const adjW = adjustedWeights || {}
+  if (charName === '玛薇卡') {
+    console.log('[DEBUG _buildCharMarkTable] baseW keys:', Object.keys(baseW))
+    console.log('[DEBUG _buildCharMarkTable] baseW.mastery:', baseW.mastery)
+    console.log('[DEBUG _buildCharMarkTable] adjW keys:', Object.keys(adjW))
+    console.log('[DEBUG _buildCharMarkTable] adjW.mastery:', adjW.mastery)
+  }
   const weights = { ...baseW }
   for (const k of Object.keys(adjW)) {
     if (adjW[k] !== undefined) weights[k] = adjW[k]
+  }
+  if (charName === '玛薇卡') {
+    console.log('[DEBUG _buildCharMarkTable] final weights.mastery:', weights.mastery)
+    console.log('[DEBUG _buildCharMarkTable] final weights keys:', Object.keys(weights))
   }
 
   const markMap = {}
