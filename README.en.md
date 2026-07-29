@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![中文](https://img.shields.io/badge/README-中文-orange)](./README.md)
-[![Version](https://img.shields.io/badge/version-1.12.13-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.13.0-brightgreen)]()
 
 Artifact Growth Value Panel Plugin - Based on Miao-Yunzai (TRSS-Yunzai). Displays character artifact initial values and substat growth history.
 
@@ -14,12 +14,13 @@ Artifact Growth Value Panel Plugin - Based on Miao-Yunzai (TRSS-Yunzai). Display
 
 ### 1. Artifact Growth Value Panel
 
-Command: `#<character>圣遗物成长值面板` (`<character>` is the character name, supports aliases)
+Command formats (supports character aliases):
 
-Examples:
-- `#甘雨圣遗物成长值面板`
-- `#胡桃圣遗物成长值面板`
-- `#雷电将军圣遗物成长值面板`
+| Format | Example | Description |
+|--------|---------|-------------|
+| `#<char>圣遗物成长值面板` | `#甘雨圣遗物成长值面板` | Query your own data |
+| `#@<char>圣遗物成长值面板` | `#@甘雨圣遗物成长值面板` | Query data of @mentioned user |
+| `#<uid><char>圣遗物成长值面板` | `#100000001甘雨圣遗物成长值面板` | Query data of specified UID |
 
 Returns an image showing the character panel and all artifact initial values and growth history:
 

@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![English](https://img.shields.io/badge/README-English-blue)](./README.en.md)
-[![Version](https://img.shields.io/badge/version-1.12.13-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.13.0-brightgreen)]()
 
 圣遗物成长值面板插件 - 基于 Miao-Yunzai（TRSS-Yunzai），展示角色圣遗物初始值及副词条成长历史。
 
@@ -14,12 +14,13 @@
 
 ### 1. 圣遗物成长值面板
 
-指令：`#xx圣遗物成长值面板`（xx 为角色名，支持别名）
+指令格式（支持别名）：
 
-示例：
-- `#甘雨圣遗物成长值面板`
-- `#胡桃圣遗物成长值面板`
-- `#雷电将军圣遗物成长值面板`
+| 格式 | 示例 | 说明 |
+|------|------|------|
+| `#角色名圣遗物成长值面板` | `#甘雨圣遗物成长值面板` | 查询自己的数据 |
+| `#@角色名圣遗物成长值面板` | `#@甘雨圣遗物成长值面板` | 查询 @用户 的数据 |
+| `#UID角色名圣遗物成长值面板` | `#100000001甘雨圣遗物成长值面板` | 查询指定 UID 的数据 |
 
 返回一张图片，展示角色面板及所有圣遗物的初始值及成长历史：
 
