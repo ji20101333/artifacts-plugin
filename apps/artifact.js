@@ -369,15 +369,46 @@ async function resolveCharacter (nameInput) {
 }
 
 // ---- UID 解析 ----
-async function resolveUid (e) {
+// 优先级: 显式 UID > @qq 用户绑定 > e.runtime.getUid() > 消息中的 UID > Redis/DB
+async function resolveUid (e, explicitUid = null) {
+  // 1. 显式 UID (#uid甘雨...)
+  if (explicitUid) return explicitUid
+
+  // 2. @qq 用户 — 查找该 QQ 绑定的 UID
+  const qq = e.at && !e.atBot ? String(e.at) : null
+  if (qq) {
+    const uid = await findUidByQq(qq)
+    if (uid) return uid
+  }
+
+  // 3. e.runtime.getUid()
   try {
     if (e.runtime?.getUid) {
       return await e.runtime.getUid()
     }
   } catch (_) { /* fallback */ }
+
+  // 4. 消息中的 UID
   const match = e.msg?.match?.(/([1-9]\d{8})/)
   if (match) return match[1]
   return ''
+}
+
+// 通过 QQ 号查找绑定的 UID
+async function findUidByQq (qq) {
+  try {
+    const playerDataDir = path.resolve(_cwd, 'data/PlayerData/gs')
+    if (!fs.existsSync(playerDataDir)) return null
+    const files = fs.readdirSync(playerDataDir).filter(f => f.endsWith('.json'))
+    for (const f of files) {
+      const uid = f.replace('.json', '')
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(playerDataDir, f), 'utf-8'))
+        if (data.userId === String(qq)) return uid
+      } catch (_) { continue }
+    }
+  } catch (_) {}
+  return null
 }
 
 // ---- 格式化函数 (参考 miao-plugin Format.comma / Format.pct) ----
@@ -1406,15 +1437,16 @@ export class artifactInitPanel extends plugin {
       event: 'message',
       priority: 10,
       rule: [
-        { reg: /^#([^#\s]+)圣遗物成长值面板$/, fnc: 'showArtifactInitPanel' }
+        { reg: /^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板$/, fnc: 'showArtifactInitPanel' }
       ]
     })
   }
 
   async showArtifactInitPanel () {
-    const match = this.e.msg?.match?.(/^#([^#\s]+)圣遗物成长值面板$/)
+    const match = this.e.msg?.match?.(/^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板$/)
     if (!match) return false
-    const nameInput = match[1]
+    const explicitUid = match[1] || null
+    const nameInput = match[2]
 
     const charName = await resolveCharacter(nameInput)
     if (!charName) {
@@ -1422,9 +1454,9 @@ export class artifactInitPanel extends plugin {
       return true
     }
 
-    const uid = await resolveUid(this.e)
+    const uid = await resolveUid(this.e, explicitUid)
     if (!uid) {
-      await this.e.reply('请先使用【#绑定+你的UID】来绑定查询目标')
+      await this.e.reply('未找到该用户绑定的UID，请先使用【#绑定+你的UID】来绑定查询目标')
       return true
     }
 
