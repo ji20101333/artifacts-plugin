@@ -1278,13 +1278,13 @@ async function processArtifacts (uid, charName) {
       let displayTotal = toDisplayValue(sh.key, sh.totalValue)
       let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
       if (sh.key === 'atkPlus') {
-        displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
+        displayTotal = displayTotal / flatRefBase.atk * 100
         avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
       } else if (sh.key === 'hpPlus') {
-        displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
+        displayTotal = displayTotal / flatRefBase.hp * 100
         avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
       } else if (sh.key === 'defPlus') {
-        displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
+        displayTotal = displayTotal / flatRefBase.def * 100
         avgVal = _avgRollValue.def || toDisplayValue('def', 1)
       }
       summaryMap[weightKey].count += displayTotal / avgVal
