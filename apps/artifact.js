@@ -28,6 +28,10 @@ let _weaponByName = {}  // weapon data keyed by name
 let _weaponBuffs = {}   // weapon buff/passive configs from calc.js
 let _dataLoaded = false
 
+// 未知角色的默认评分权重 (参考 miao-plugin ArtisMarkCfg defaultAttrWeight)
+// 新角色尚未录入 miao-plugin artis-mark.js / liangshi-calc 时使用, 保证评分/词条数不为 0
+const DEFAULT_ARTIS_WEIGHTS = { atk: 75, cpct: 100, cdmg: 100, dmg: 100, phy: 100 }
+
 // ---- 武器 Buff 辅助函数 (参考 miao-plugin resources/meta-gs/weapon/index.js) ----
 // step(start, _step): 生成 6 元素的精炼数组 [r1..r5 + 1]
 function step (start, _step = 0) {
@@ -628,17 +632,17 @@ function getEffectiveStats (charName) {
     if (key.startsWith(charName + '/')) return _mainAttrData[key].split(',')
   }
   // fallback: 从 artis-mark.js 获取权重>0的词条
-  const w = _usefulAttr[charName] || {}
+  const w = _usefulAttr[charName] || DEFAULT_ARTIS_WEIGHTS
   if (Object.keys(w).length > 0) {
     return Object.keys(w).filter(k => w[k] > 0 && k !== 'dmg' && k !== 'phy')
   }
-  return ['atk', 'cpct', 'cdmg']
+  return Object.keys(DEFAULT_ARTIS_WEIGHTS)
 }
 
 // ---- 获取调整后的词条权重 (参考 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
 // 处理: 角色专属artis.js规则 → 武器权重调整 → 套装调整
 async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, attrCtx = null) {
-  const rawWeights = _usefulAttr[charName] || {}
+  const rawWeights = _usefulAttr[charName] || { ...DEFAULT_ARTIS_WEIGHTS }
   const wn = weaponName || ''
 
   // 默认权重调整 (参考 miao-plugin ArtisMarkCfg.def 函数)
@@ -733,7 +737,8 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
 function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
   // 以 _usefulAttr 为基准, 仅合并非 undefined 的 adjustedWeights (防止 undefined 覆盖有效权重)
-  const baseW = _usefulAttr[charName] || {}
+  // 未知角色 (如新角色未录入 artis-mark.js) 回退到默认权重, 与 miao-plugin 行为一致
+  const baseW = _usefulAttr[charName] || { ...DEFAULT_ARTIS_WEIGHTS }
   const adjW = adjustedWeights || {}
   const weights = { ...baseW }
   for (const k of Object.keys(adjW)) {
@@ -1131,6 +1136,18 @@ async function processArtifacts (uid, charName) {
   // 使用调整后的权重 (已计入武器/套装加成)
   const currWeights = markTable._weights
 
+  // 小词条→等效百分比的折算基准 (参考 miao-plugin ArtisMarkCfg.getCfg: baseAttr + atk 520)
+  // 必须使用角色元数据满级基准值, 而非运行时按等级缩放的白值——
+  // 否则低等级角色 (如 1 级新角色) 白值极小, 小词条折合词条数会异常膨胀
+  // 攻击基准 = 角色满级 baseAttr + 当前武器满级基础攻击力 (取武器攻击曲线最大值)
+  const flatRefBase = (() => {
+    const base = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
+    const wAtkCurve = (weaponMeta?.attr?.atk && typeof weaponMeta.attr.atk === 'object')
+      ? Object.values(weaponMeta.attr.atk).filter(v => typeof v === 'number') : []
+    const wMaxAtk = wAtkCurve.length > 0 ? Math.max(...wAtkCurve) : 520
+    return { hp: base.hp || 14000, atk: (base.atk || 230) + wMaxAtk, def: base.def || 700 }
+  })()
+
   for (let pos = 1; pos <= 5; pos++) {
     const arti = artisData[pos]
     if (!arti || !arti.name) {
@@ -1168,15 +1185,15 @@ async function processArtifacts (uid, charName) {
         let displayTotal = toDisplayValue(sh.key, sh.totalValue)
         let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
 
-        // 小攻击/小防御/小生命 → 等效大百分比 (词条数折合)
+        // 小攻击/小防御/小生命 → 等效大百分比 (词条数折合, 基准同 miao-plugin: 满级baseAttr+atk520)
         if (sh.key === 'atkPlus') {
-          displayTotal = displayTotal / getBase(attrCtx, 'atk') * 100
+          displayTotal = displayTotal / flatRefBase.atk * 100
           avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
         } else if (sh.key === 'hpPlus') {
-          displayTotal = displayTotal / getBase(attrCtx, 'hp') * 100
+          displayTotal = displayTotal / flatRefBase.hp * 100
           avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
         } else if (sh.key === 'defPlus') {
-          displayTotal = displayTotal / getBase(attrCtx, 'def') * 100
+          displayTotal = displayTotal / flatRefBase.def * 100
           avgVal = _avgRollValue.def || toDisplayValue('def', 1)
         }
         // 词条数: 展示值 / 平均成长值
@@ -1331,7 +1348,7 @@ async function processArtifacts (uid, charName) {
   // ---- 构建角色面板数值 (参考 miao-plugin ProfileDetail.render) ----
   // 权重来自 miao-plugin artis-mark.js → usefulAttr (默认: atk 75, cpct/cdmg/dmg/phy 100)
   const charWeights = _usefulAttr[charName]
-    || { atk: 75, cpct: 100, cdmg: 100, dmg: 100, phy: 100 }
+    || { ...DEFAULT_ARTIS_WEIGHTS }
 
   const charStats = []
   // 固定值属性 (hp, atk, def): 使用 Format.comma
