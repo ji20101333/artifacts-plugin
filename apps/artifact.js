@@ -1225,7 +1225,7 @@ async function processArtifacts (uid, charName) {
       // fixPct: 充能沙漏不重新计算, 恒为1 (参考 miao-plugin key!== 'recharge' 分支)
       if (mainKey !== 'recharge') {
         const mainWeight = currWeights[scoreKey] || 0
-        const posMaxW = maxWeightByPos[pos] || 100
+        const posMaxW = markTable._maxWeightByPos?.[pos] || 100
         fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
         // 攻/生/防 主词条权重≥75 视为可用 (参考 miao-plugin)
         if (['atk', 'hp', 'def'].includes(scoreKey) && mainWeight >= 75) {
@@ -1444,6 +1444,619 @@ function calcPromoteLevel (lv) {
   return promote
 }
 
+// ---- 模拟指令辅助函数 ----
+
+// 部件名 → 位置 (1~5)
+function _pieceNameToPos (pieceName) {
+  const map = { '生之花': 1, '花': 1, '死之羽': 2, '羽': 2, '时之沙': 3, '沙': 3, '空之杯': 4, '杯': 4, '理之冠': 5, '头': 5 }
+  return map[pieceName] || null
+}
+
+// 判断名称是角色还是武器（用于模拟指令中区分换角色/换武器）
+function _resolveSimNameType (name) {
+  // 先查角色别名
+  if (_aliasData) {
+    for (const [key, aliases] of Object.entries(_aliasData)) {
+      if (key === name || aliases.split(',').includes(name)) return 'character'
+    }
+  }
+  // 再查武器精确/模糊匹配
+  if (_weaponByName[name]) return 'weapon'
+  for (const wName of Object.keys(_weaponByName)) {
+    if (wName.includes(name) || name.includes(wName)) return 'weapon'
+  }
+  // 默认当作角色
+  return 'character'
+}
+
+// 构建模拟说明文本
+function _buildSimInfo (opts, swapFromLabel) {
+  const parts = []
+  if (swapFromLabel) parts.push(`换件: ${swapFromLabel}`)
+  if (opts.simName) {
+    const type = _resolveSimNameType(opts.simName)
+    if (type === 'character') {
+      parts.push(opts.simLevel ? `${opts.simLevel}级${opts.simName}` : opts.simName)
+    } else {
+      parts.push(opts.simName + (opts.simLevel ? `${opts.simLevel}级` : ''))
+    }
+  }
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+// 解析模拟指令条件段
+// simPart 格式: "换{uid}{角色名}{部件名}[换{等级}级{角色名或武器名}]"
+function parseSimOptions (simPart) {
+  const options = {}
+  if (!simPart || !simPart.includes('换')) return options
+
+  const normalized = simPart.trim().replace(/\s+/g, '').replace(/换+/g, '换')
+  const content = normalized.startsWith('换') ? normalized.slice(1) : normalized
+  const segments = content.split('换').filter(s => s.length > 0)
+  if (segments.length === 0) return options
+
+  // 第一段（必选）: {uid}{角色名}{部件名}
+  const first = segments[0]
+  const uidMatch = first.match(/^(\d{9,10})/)
+  if (!uidMatch) return options
+  options.uid = uidMatch[1]
+  const rest = first.slice(uidMatch[1].length)
+
+  const knownPieces = ['生之花', '死之羽', '时之沙', '空之杯', '理之冠', '花', '羽', '沙', '杯', '头']
+  knownPieces.sort((a, b) => b.length - a.length)
+  let pieceFound = false
+  for (const piece of knownPieces) {
+    if (rest.endsWith(piece)) {
+      options.piece = piece
+      options.sourceCharName = rest.slice(0, -piece.length)
+      pieceFound = true
+      break
+    }
+  }
+  if (!pieceFound) return options
+
+  // 第二段（可选）: 换{等级}级{角色名/武器名} 或 换{角色名/武器名}
+  if (segments.length > 1) {
+    const second = segments[1]
+    const lvMatch = second.match(/^(\d+)级(.+)$/)
+    if (lvMatch) {
+      options.simLevel = parseInt(lvMatch[1])
+      options.simName = lvMatch[2]
+    } else {
+      options.simName = second
+    }
+  }
+
+  return options
+}
+
+// ======================== 模拟核心函数 ========================
+
+// 公共属性计算管道：角色基础值 → 武器 → 圣遗物套装 → 评分 → 汇总 → 面板数值
+// 供 processArtifacts 和 processSimulatedArtifacts 共用
+async function _runAttrPipeline ({
+  charName, charLevel, charCons, charMeta, charDetailAttr, elem, weaponInfo, artisData, scoringCharName
+}) {
+  const effectiveStats = getEffectiveStats(scoringCharName)
+
+  // 初始化属性计算器
+  const attrCtx = createAttrData()
+  const charPromote = calcPromoteLevel(charLevel)
+
+  // 角色基础值（参考 miao-plugin Attr.calc → setCharAttr）
+  if (charDetailAttr) {
+    const { keys, details } = charDetailAttr
+    const lvStep = [1, 20, 40, 50, 60, 70, 80, 90, 100]
+    let lvLeft = 0, lvRight = 0, currPromote = 0
+    for (let idx = 0; idx < lvStep.length - 1; idx++) {
+      if (currPromote === charPromote) {
+        if (charLevel >= lvStep[idx] && charLevel <= lvStep[idx + 1]) {
+          lvLeft = lvStep[idx]; lvRight = lvStep[idx + 1]; break
+        }
+      }
+      currPromote++
+    }
+    const detailLeft = details[lvLeft + '+'] || details[lvLeft] || {}
+    const detailRight = details[lvRight] || {}
+
+    const getLvData = (idx, step = false) => {
+      const vl = detailLeft[idx], vr = detailRight[idx]
+      if (!step) {
+        return vl * 1 + ((vr - vl) * (charLevel - lvLeft) / (lvRight - lvLeft))
+      } else {
+        return vl * 1 + ((vr - vl) * Math.floor((charLevel - lvLeft) / 5) / Math.round((lvRight - lvLeft) / 5))
+      }
+    }
+
+    addAttr(attrCtx, keys[0], getLvData(0, false), true)
+    addAttr(attrCtx, keys[1], getLvData(1, false), true)
+    addAttr(attrCtx, keys[2], getLvData(2, false), true)
+    if (keys.length > 3) {
+      addAttr(attrCtx, keys[3], getLvData(3, true), !/(hp|atk|def)/.test(keys[3]))
+    }
+    for (let i = 4; i < keys.length; i++) {
+      const k = keys[i]
+      const v = getLvData(i, !/hp|atk|def/.test(k.replace('Base', '')) && k !== 'hpBase' && k !== 'atkBase' && k !== 'defBase')
+      addAttr(attrCtx, k, v, /Base$/.test(k))
+    }
+  } else {
+    // fallback: 使用 meta 中的 baseAttr
+    const baseHp = charMeta?.baseAttr?.hp || 10000
+    const baseAtk = charMeta?.baseAttr?.atk || 200
+    const baseDef = charMeta?.baseAttr?.def || 600
+    addAttr(attrCtx, 'hpBase', baseHp, true)
+    addAttr(attrCtx, 'atkBase', baseAtk, true)
+    addAttr(attrCtx, 'defBase', baseDef, true)
+  }
+
+  // 基础值: 充能100%, 暴击5%, 暴伤50%
+  addAttr(attrCtx, 'recharge', 100, true)
+  addAttr(attrCtx, 'cpct', 5, true)
+  addAttr(attrCtx, 'cdmg', 50, true)
+
+  // 武器属性
+  if (weaponInfo) {
+    addAttr(attrCtx, 'atkBase', weaponInfo.baseAtk)
+    if (weaponInfo.bonusKey) {
+      addAttr(attrCtx, weaponInfo.bonusKey, weaponInfo.bonusVal)
+    }
+    const wBuffs = _weaponBuffs[weaponInfo.name] || []
+    const affix = weaponInfo.affix || 1
+    for (const buff of (Array.isArray(wBuffs) ? wBuffs : [wBuffs])) {
+      if (!buff || typeof buff !== 'object' || !buff.isStatic) continue
+      if (buff.refine) {
+        for (const [key, r] of Object.entries(buff.refine)) {
+          if (Array.isArray(r)) {
+            addAttr(attrCtx, key, r[affix - 1] * (buff.buffCount || 1))
+          }
+        }
+      }
+    }
+  }
+
+  // 圣遗物套装 Buff
+  const setCounts = {}
+  for (let pos = 1; pos <= 5; pos++) {
+    const arti = artisData[pos]
+    if (!arti || !arti.name) continue
+    const setName = _pieceToSet[arti.name]
+    if (setName) setCounts[setName] = (setCounts[setName] || 0) + 1
+  }
+  for (const [setName, count] of Object.entries(setCounts)) {
+    const setBuffs = _artiBuffs[setName]
+    if (!setBuffs) continue
+    if (count >= 2 && setBuffs[2]) _applySetBuffs(attrCtx, setBuffs[2], elem)
+    if (count >= 4 && setBuffs[4]) _applySetBuffs(attrCtx, setBuffs[4], elem)
+  }
+
+  // ---- 评分系数 ----
+  const adjustedWeights = await _getAdjustedWeights(scoringCharName,
+    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts, attrCtx)
+  const markTable = _buildCharMarkTable(scoringCharName, charMeta, adjustedWeights)
+  const posMaxMark = _computePosMaxMark(markTable)
+  const currWeights = markTable._weights
+
+  // 小词条折算基准
+  const flatRefBase = (() => {
+    const base = charMeta?.baseAttr || getCharBaseAttr(scoringCharName) || { hp: 14000, atk: 230, def: 700 }
+    const wAtkCurve = (weaponInfo?.baseAtk) ? [weaponInfo.baseAtk] : []
+    return {
+      hp: base.hp || 14000,
+      atk: (base.atk || 230) + (wAtkCurve.length > 0 ? Math.max(...wAtkCurve) : 520),
+      def: base.def || 700
+    }
+  })()
+
+  // ---- 逐件圣遗物处理 ----
+  const artisList = []
+  const getWeightKey = (key) => {
+    if (key === 'atkPlus') return 'atk'
+    if (key === 'hpPlus') return 'hp'
+    if (key === 'defPlus') return 'def'
+    return key
+  }
+
+  for (let pos = 1; pos <= 5; pos++) {
+    const arti = artisData[pos]
+    if (!arti || !arti.name) {
+      artisList.push({ pos, empty: true, posName: posNames[pos] || `位置${pos}` })
+      continue
+    }
+
+    const { level = 0, star = 5, name, mainId, attrIds = [] } = arti
+    const mainKey = _mainIdMap[mainId] || '未知'
+    const mainVal = calcMainValue(mainKey, level, star)
+
+    // 主词条加入属性计算
+    calcArtisAttr(attrCtx, mainKey, mainVal, elem)
+
+    // 副词条
+    const subHistory = calcSubstatHistory(attrIds)
+    for (const sh of subHistory) {
+      calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
+    }
+
+    // 有效数
+    const effectiveCount = subHistory.filter(sh => (currWeights[getWeightKey(sh.key)] || 0) > 0).length
+
+    // 副词条评分 & 词条数
+    let upgradeCount = 0
+    let subScore = 0
+    for (const sh of subHistory) {
+      const weightKey = getWeightKey(sh.key)
+      const weightVal = currWeights[weightKey] || 0
+      if (weightVal > 0) {
+        const mInfo = markTable[sh.key]
+        let displayTotal = toDisplayValue(sh.key, sh.totalValue)
+        let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
+        if (sh.key === 'atkPlus') {
+          displayTotal = displayTotal / flatRefBase.atk * 100
+          avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
+        } else if (sh.key === 'hpPlus') {
+          displayTotal = displayTotal / flatRefBase.hp * 100
+          avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
+        } else if (sh.key === 'defPlus') {
+          displayTotal = displayTotal / flatRefBase.def * 100
+          avgVal = _avgRollValue.def || toDisplayValue('def', 1)
+        }
+        upgradeCount += displayTotal / avgVal
+        if (mInfo) {
+          subScore += mInfo.mark * toDisplayValue(sh.key, sh.totalValue)
+        }
+      }
+    }
+
+    // 主词条评分（沙/杯/头）
+    let mainScore = 0
+    let fixPct = 1
+    if (pos >= 3) {
+      let scoreKey = mainKey
+      if (pos === 4 && isElemKey(mainKey)) {
+        if (mainKey === elem || charMeta?.id === 10000128) scoreKey = 'dmg'
+      }
+      const mInfo = markTable[scoreKey]
+      if (mInfo) {
+        mainScore = mInfo.mark * mainVal / 4
+      }
+      if (mainKey !== 'recharge') {
+        const mainWeight = currWeights[scoreKey] || 0
+        const posMaxW = maxWeightByPos[pos] || 100
+        fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
+        if (['atk', 'hp', 'def'].includes(scoreKey) && mainWeight >= 75) {
+          fixPct = 1
+        }
+      }
+    }
+
+    let artiScore = (mainScore + subScore) * (1 + fixPct) / 2 / (posMaxMark[pos] || 1) * 66
+    upgradeCount = to3SigFigs(upgradeCount)
+    artiScore = Math.round(artiScore * 100) / 100
+
+    // 评级
+    const scoreMap = [['D', 7], ['C', 14], ['B', 21], ['A', 28], ['S', 35], ['SS', 42], ['SSS', 49], ['ACE', 56], ['MAX', 70]]
+    let artiRating = 'D'
+    for (const [grade, threshold] of scoreMap) {
+      if (artiScore < threshold) { artiRating = grade; break }
+      artiRating = grade
+    }
+
+    const img = findArtifactImage(name)
+    const totalGrowth = subHistory.reduce((sum, sh) => sum + sh.growthSteps.length, 0)
+    const initialCount = star >= 5 ? Math.max(0, totalGrowth - 1) : 0
+
+    artisList.push({
+      pos, empty: false, name, level, star, img,
+      mainKey, mainValText: formatMainValue(mainKey, mainVal),
+      mainKeyName: mainKeyNameMap[mainKey] || mainKey,
+      subHistory, upgradeCount, effectiveCount, initialCount, artiScore, artiRating,
+      posName: posNames[pos] || `位置${pos}`
+    })
+  }
+
+  // ---- 有效词条汇总 ----
+  const summaryMap = {}
+  const summaryOrder = []
+  for (const arti of artisList) {
+    if (arti.empty) continue
+    for (const sh of arti.subHistory) {
+      const weightKey = getWeightKey(sh.key)
+      if ((currWeights[weightKey] || 0) <= 0) continue
+      if (!summaryMap[weightKey]) {
+        summaryMap[weightKey] = { key: weightKey, count: 0 }
+        summaryOrder.push(weightKey)
+      }
+      let displayTotal = toDisplayValue(sh.key, sh.totalValue)
+      let avgVal = _avgRollValue[sh.key] || toDisplayValue(sh.key, 1)
+      if (sh.key === 'atkPlus') {
+        displayTotal = displayTotal / flatRefBase.atk * 100
+        avgVal = _avgRollValue.atk || toDisplayValue('atk', 1)
+      } else if (sh.key === 'hpPlus') {
+        displayTotal = displayTotal / flatRefBase.hp * 100
+        avgVal = _avgRollValue.hp || toDisplayValue('hp', 1)
+      } else if (sh.key === 'defPlus') {
+        displayTotal = displayTotal / flatRefBase.def * 100
+        avgVal = _avgRollValue.def || toDisplayValue('def', 1)
+      }
+      summaryMap[weightKey].count += displayTotal / avgVal
+    }
+  }
+  const summaryLabelMap = { atk: '攻击', hp: '生命', def: '防御' }
+  const summaryItems = summaryOrder.map(key => ({
+    key,
+    shortName: summaryLabelMap[key] || subKeyShortName[key] || key,
+    count: Math.round(summaryMap[key].count * 100) / 100
+  }))
+  // 强制显示所有有效词条类型
+  for (const [wKey, wVal] of Object.entries(currWeights)) {
+    if (wVal > 0 && !summaryMap[wKey]) {
+      summaryItems.push({
+        key: wKey,
+        shortName: summaryLabelMap[wKey] || subKeyShortName[wKey] || wKey,
+        count: 0
+      })
+    }
+  }
+  summaryItems.sort((a, b) => b.count - a.count)
+  const _subSummaryKeys = new Set(['atk', 'def', 'hp', 'mastery', 'recharge', 'cpct', 'cdmg'])
+  const summaryFiltered = summaryItems.filter(item => _subSummaryKeys.has(item.key))
+
+  // 总计
+  let totalWordCount = 0, totalEffectiveCount = 0, totalScore = 0
+  for (const arti of artisList) {
+    if (arti.empty) continue
+    totalEffectiveCount += arti.effectiveCount
+    totalWordCount += arti.upgradeCount
+    totalScore += arti.artiScore
+  }
+  totalScore = Math.round(totalScore * 100) / 100
+  const totalMark = totalScore
+  const scoreMapTotal = [['D', 35], ['C', 70], ['B', 105], ['A', 140], ['S', 175], ['SS', 210], ['SSS', 245], ['ACE', 280], ['MAX', 350]]
+  let markClass = 'D'
+  for (const [grade, threshold] of scoreMapTotal) {
+    if (totalMark < threshold) { markClass = grade; break }
+    markClass = grade
+  }
+
+  const effectiveSummary = {
+    totalEffectiveCount,
+    totalWordCount: to3SigFigs(totalWordCount),
+    totalMark,
+    markClass,
+    items: summaryFiltered.length > 0 ? summaryFiltered : [{ key: '', shortName: '无有效词条', count: 0 }]
+  }
+
+  // ---- 角色面板数值 ----
+  const charWeights = _usefulAttr[scoringCharName] || { ...DEFAULT_ARTIS_WEIGHTS }
+  const charStats = []
+  for (const key of ['hp', 'atk', 'def']) {
+    const total = getAttr(attrCtx, key)
+    const base = getBase(attrCtx, key)
+    const plus = total - base
+    charStats.push({
+      key, label: statLabelMap[key] || key,
+      base: formatComma(base, key === 'hp' ? 0 : 1),
+      plus: '+' + formatComma(plus, key === 'hp' ? 0 : 1),
+      total: formatComma(total, key === 'hp' ? 0 : 1),
+      weight: charWeights[key] || 0,
+      isEffective: !!charWeights[key], showWeight: false
+    })
+  }
+  {
+    const key = 'mastery'
+    const total = getAttr(attrCtx, key)
+    const base = getBase(attrCtx, key)
+    const plus = total - base
+    charStats.push({
+      key, label: statLabelMap[key] || key,
+      base: formatComma(base, 0),
+      plus: '+' + formatComma(plus, 0),
+      total: formatComma(total, 0),
+      weight: charWeights[key] || 0,
+      isEffective: !!charWeights[key], showWeight: true
+    })
+  }
+  for (const key of ['cpct', 'cdmg', 'recharge', 'dmg']) {
+    let dataKey = key
+    if (key === 'dmg') {
+      const phyVal = getAttr(attrCtx, 'phy')
+      const dmgVal = getAttr(attrCtx, 'dmg')
+      if (phyVal > dmgVal) dataKey = 'phy'
+    }
+    const total = getAttr(attrCtx, dataKey)
+    const base = getBase(attrCtx, dataKey)
+    const plus = total - base
+    charStats.push({
+      key,
+      label: statLabelMap[key] || key,
+      base: formatPct(base),
+      plus: (plus >= 0 ? '+' : '') + formatPct(plus),
+      total: formatPct(total),
+      weight: charWeights[key] || 0,
+      isEffective: !!charWeights[key], showWeight: true
+    })
+  }
+  for (const dk of _elemKeys) {
+    const dkVal = getAttr(attrCtx, dk)
+    const dmgVal = getAttr(attrCtx, 'dmg')
+    if (dkVal > 0 && dkVal > dmgVal) {
+      const base = getBase(attrCtx, dk)
+      const plus = dkVal - base
+      charStats.push({
+        key: dk, label: mainKeyNameMap[dk] || dk,
+        base: formatPct(base),
+        plus: (plus >= 0 ? '+' : '') + formatPct(plus),
+        total: formatPct(dkVal),
+        weight: charWeights[dk] || 0,
+        isEffective: false, showWeight: false
+      })
+    }
+  }
+
+  return {
+    artisList, effectiveSummary, charStats, charWeights,
+    effectiveStats: effectiveStats.join('、')
+  }
+}
+
+// 模拟指令核心函数
+async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
+  await loadStaticData()
+
+  // 1. 读取 baseUid 数据，查找 baseChar
+  const baseDataPath = path.resolve(_cwd, 'data/PlayerData/gs', `${baseUid}.json`)
+  if (!fs.existsSync(baseDataPath)) {
+    return { error: `未找到UID ${baseUid} 的角色数据，请先使用【#更新面板】` }
+  }
+  let basePlayerData
+  try { basePlayerData = JSON.parse(fs.readFileSync(baseDataPath, 'utf-8')) } catch (e) {
+    return { error: `读取UID ${baseUid} 数据失败: ${e.message}` }
+  }
+
+  const baseAvatars = basePlayerData.avatars || {}
+  let matchedAvatar = null
+  for (const [id, avatar] of Object.entries(baseAvatars)) {
+    if (avatar.name === charName) { matchedAvatar = avatar; break }
+  }
+  if (!matchedAvatar) {
+    for (const [id, avatar] of Object.entries(baseAvatars)) {
+      if ((avatar.name || '').includes(charName) || charName.includes(avatar.name || '')) {
+        matchedAvatar = avatar; break
+      }
+    }
+  }
+  if (!matchedAvatar) {
+    const available = Object.values(baseAvatars).map(a => a.name).filter(Boolean).join('、')
+    return {
+      error: `UID ${baseUid} 未找到角色「${charName}」`,
+      hint: available ? `当前可用角色：${available}` : '暂无任何角色数据，请先使用【#更新面板】'
+    }
+  }
+
+  // 2. 换件：读取换件来源 UID 的数据
+  let artisData = { ...(matchedAvatar.artis || {}) }
+  let swapFromLabel = ''
+  if (simOptions.uid && simOptions.sourceCharName && simOptions.piece) {
+    const otherPath = path.resolve(_cwd, 'data/PlayerData/gs', `${simOptions.uid}.json`)
+    if (fs.existsSync(otherPath)) {
+      try {
+        const otherData = JSON.parse(fs.readFileSync(otherPath, 'utf-8'))
+        const otherAvatars = otherData.avatars || {}
+        let sourceAvatar = null
+        const srcName = simOptions.sourceCharName
+        for (const [id, av] of Object.entries(otherAvatars)) {
+          if (av.name === srcName) { sourceAvatar = av; break }
+        }
+        if (!sourceAvatar) {
+          for (const [id, av] of Object.entries(otherAvatars)) {
+            if ((av.name || '').includes(srcName) || srcName.includes(av.name || '')) { sourceAvatar = av; break }
+          }
+        }
+        if (sourceAvatar?.artis) {
+          const targetPos = _pieceNameToPos(simOptions.piece)
+          if (targetPos && sourceAvatar.artis[targetPos]) {
+            artisData[targetPos] = sourceAvatar.artis[targetPos]
+            swapFromLabel = `${simOptions.uid}${simOptions.sourceCharName}${simOptions.piece}`
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 3. 确定模拟角色/等级/武器
+  const simName = simOptions.simName || ''
+  const simType = simName ? _resolveSimNameType(simName) : null
+  // simType === 'character': 换角色; 'weapon': 换武器; null: 不换
+
+  const targetCharName = simType === 'character' ? simName : charName
+  const targetCharLevel = simType === 'character' && simOptions.simLevel
+    ? simOptions.simLevel
+    : (matchedAvatar.level || 1)
+  const targetCharMeta = findCharMetaByName(targetCharName)
+  const targetElem = targetCharMeta?.elem || getCharElement(targetCharName) || 'hydro'
+
+  // 4. 武器处理
+  let weaponInfo = null
+  const effectiveWeaponMeta = simType === 'weapon'
+    ? findWeaponData(simName)
+    : findWeaponData(matchedAvatar.weapon?.name || '')
+
+  if (effectiveWeaponMeta) {
+    const wLevel = simType === 'weapon' ? (simOptions.simLevel || 1) : (matchedAvatar.weapon?.level || 1)
+    const wPromote = simType === 'weapon' ? 0 : (matchedAvatar.weapon?.promote || 0)
+    const ascBoundaries = [20, 40, 50, 60, 70, 80]
+    const levelKey = (wPromote > 0 && ascBoundaries.includes(wLevel)) ? `${wLevel}+` : String(wLevel)
+
+    const wAttr = effectiveWeaponMeta.attr || {}
+    const wBaseAtk = (wAttr.atk && wAttr.atk[levelKey]) ? wAttr.atk[levelKey] : 0
+    const bonusKey = wAttr.bonusKey || ''
+    const bonusVal = (wAttr.bonusData && wAttr.bonusData[levelKey]) ? wAttr.bonusData[levelKey] : 0
+    const affixText = effectiveWeaponMeta.affixData?.text || ''
+    const affixDatas = effectiveWeaponMeta.affixData?.datas || {}
+    const affix = simType === 'weapon' ? 1 : (matchedAvatar.weapon?.affix || 1)
+
+    let desc = affixText
+    const reg = /\$\[(\d)\]/g
+    let match
+    while ((match = reg.exec(desc)) !== null) {
+      const idx = match[1]
+      const value = affixDatas[idx]?.[affix - 1] || affixDatas[idx]?.[0] || ''
+      desc = desc.replaceAll(match[0], value)
+    }
+
+    weaponInfo = {
+      name: effectiveWeaponMeta.name,
+      sName: effectiveWeaponMeta.name,
+      level: wLevel,
+      promote: wPromote,
+      ascLevel: (wPromote > 0 && ascBoundaries.includes(wLevel)) ? `${wLevel}+` : String(wLevel),
+      affix,
+      star: effectiveWeaponMeta.star || 5,
+      starText: '★'.repeat(effectiveWeaponMeta.star || 5),
+      img: getWeaponImage(effectiveWeaponMeta),
+      baseAtk: wBaseAtk,
+      bonusKey,
+      bonusVal,
+      bonusKeyName: weaponAttrTitleMap[bonusKey] || statLabelMap[bonusKey] || bonusKey,
+      desc,
+      type: effectiveWeaponMeta._type || ''
+    }
+  }
+
+  // 5. 角色基础属性（模拟角色）
+  const charDetailAttr = loadCharDetailAttr(targetCharName)
+  const charCons = matchedAvatar.cons || 0 // 命座仍用 baseChar
+
+  // 6. 运行属性计算管道
+  const pipelineResult = await _runAttrPipeline({
+    charName: targetCharName,
+    charLevel: targetCharLevel,
+    charCons,
+    charMeta: targetCharMeta,
+    charDetailAttr,
+    elem: targetElem,
+    weaponInfo,
+    artisData,
+    scoringCharName: targetCharName
+  })
+
+  if (pipelineResult.error) return pipelineResult
+
+  // 附加换件标注
+  if (swapFromLabel) {
+    pipelineResult.swapFrom = swapFromLabel
+  }
+
+  // 构建 simInfo
+  pipelineResult.simInfo = _buildSimInfo(simOptions, swapFromLabel)
+  pipelineResult.charName = targetCharName
+  pipelineResult.charLevel = targetCharLevel
+  pipelineResult.elem = targetElem
+  pipelineResult.weaponInfo = weaponInfo
+  pipelineResult.uid = baseUid
+
+  return pipelineResult
+}
+
 // ======================== Plugin Class ========================
 
 export class artifactInitPanel extends plugin {
@@ -1454,11 +2067,213 @@ export class artifactInitPanel extends plugin {
       event: 'message',
       priority: 10,
       rule: [
-        { reg: /^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板$/, fnc: 'showArtifactInitPanel' }
+        { reg: /^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板$/, fnc: 'showArtifactInitPanel' },
+        { reg: /^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板(.*)$/, fnc: 'showSimulatedArtifactInitPanel' }
       ]
     })
   }
 
+  // 模拟指令 handler
+  async showSimulatedArtifactInitPanel () {
+    const match = this.e.msg?.match?.(/^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板(.*)$/)
+    if (!match) return false
+
+    const explicitUid = match[1] || null
+    const simPart = match[3] || ''
+    const nameInput = match[2]
+
+    // 无换条件段，退化为基座行为
+    if (!simPart.includes('换')) {
+      const baseMatch = this.e.msg.match(/^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板$/)
+      if (baseMatch) return this.showArtifactInitPanel()
+      return false
+    }
+
+    const simOptions = parseSimOptions(simPart)
+    // 验证必选项：uid / sourceCharName / piece
+    if (!simOptions.uid || !simOptions.sourceCharName || !simOptions.piece) {
+      await this.e.reply('模拟条件格式错误，正确格式：换{UID}{角色名}{部件名}，例如：换165914169优菈花')
+      return true
+    }
+
+    const charName = await resolveCharacter(nameInput)
+    if (!charName) {
+      await this.e.reply('无法识别角色名，请检查输入格式，示例：#甘雨圣遗物成长值面板换165914169优菈花')
+      return true
+    }
+
+    const uid = await resolveUid(this.e, explicitUid)
+    if (!uid) {
+      await this.e.reply('未找到该用户绑定的UID，请先使用【#绑定+你的UID】来绑定查询目标')
+      return true
+    }
+
+    const result = await processSimulatedArtifacts(uid, charName, simOptions)
+    if (result.error) {
+      await this.e.reply(result.error + (result.hint ? '\n' + result.hint : ''))
+      return true
+    }
+
+    return this._renderSimulatedResult(result)
+  }
+
+  // 渲染模拟结果（复用基座 handler 的渲染逻辑）
+  async _renderSimulatedResult (result) {
+    const charName = result.charName
+    const charMeta = findCharMetaByName(charName)
+    const charSplash = getCharImage(charName, 'splash') || getCharImage(charName, 'gacha') || ''
+    const charSide = getCharImage(charName, 'side') || getCharImage(charName, 'face') || ''
+
+    // 天赋数据（模拟模式下无详细天赋数据）
+    const talentMap = { a: '普攻', e: '战技', q: '爆发' }
+    const talents = {}
+    const talentIds = {}
+    let talentIcons = {}
+    if (charMeta?.talentId) {
+      for (const [tid, key] of Object.entries(charMeta.talentId)) {
+        talentIds[key] = tid
+      }
+      talentIcons = getTalentIcons(charName, talentIds, charMeta?.weapon)
+    }
+    const talentCons = charMeta?.talentCons || {}
+
+    // imgs
+    const imgs = {}
+    for (const [key, tName] of Object.entries(talentMap)) {
+      imgs[key] = talentIcons[key] || ''
+    }
+    for (let i = 1; i <= 6; i++) {
+      imgs[`cons${i}`] = talentIcons[`cons${i}`] || ''
+    }
+
+    // attr
+    const attr = {}
+    for (const stat of result.charStats) {
+      attr[stat.key] = stat.total
+      attr[stat.key + 'Base'] = stat.base
+      attr[stat.key + 'Plus'] = stat.plus
+    }
+
+    // charWeight
+    const charWeight = { ...result.charWeights }
+    delete charWeight.dmg
+    delete charWeight.phy
+
+    // weaponData
+    let weaponData = null
+    if (result.weaponInfo) {
+      const wi = result.weaponInfo
+      const weaponAttrs = { atkBase: formatComma(wi.baseAtk, 1) }
+      const attrTitleMap = {}
+      if (wi.bonusKey) {
+        const isCommaKey = ['mastery'].includes(wi.bonusKey)
+        weaponAttrs[wi.bonusKey] = isCommaKey
+          ? formatComma(wi.bonusVal, 0)
+          : formatPct(wi.bonusVal * 1, 1)
+        attrTitleMap[wi.bonusKey] = wi.bonusKeyName
+      }
+      const descHtml = wi.desc
+        ? wi.desc.replace(/(\d+(?:\.\d+)?%?)/g, '<nobr>$1</nobr>')
+        : ''
+      weaponData = {
+        name: wi.name,
+        sName: wi.sName || wi.name,
+        level: wi.level,
+        ascLevel: wi.ascLevel || String(wi.level),
+        affix: wi.affix,
+        star: wi.star,
+        starText: wi.starText || '',
+        img: wi.img,
+        attrs: weaponAttrs,
+        attrTitleMap,
+        desc: { desc: descHtml }
+      }
+    }
+
+    // 圣遗物列表
+    const artisForTemplate = result.artisList.map(a => {
+      if (a.empty) return { empty: true, posName: a.posName }
+      return {
+        ...a,
+        swapFrom: a.swapFrom || undefined,
+        subStats: a.subHistory.map(sh => {
+          const totalText = formatSubValue(sh.key, sh.totalValue)
+          const initialText = formatSubValue(sh.key, sh.initialValue)
+          const growthTexts = sh.growthSteps.map(v => formatSubValue(sh.key, v))
+          const formula = sh.growthSteps.length > 0
+            ? initialText + '+' + growthTexts.join('+') + '=' + totalText
+            : initialText
+          const weightKey = sh.key === 'atkPlus' ? 'atk' :
+                             sh.key === 'hpPlus' ? 'hp' :
+                             sh.key === 'defPlus' ? 'def' : sh.key
+          const isEffective = (result.charWeights?.[weightKey] || 0) > 0
+          return {
+            key: sh.key,
+            shortName: subKeyShortName[sh.key] || sh.key,
+            formula,
+            hitCount: sh.hitCount,
+            isEffective
+          }
+        })
+      }
+    })
+
+    const displayName = charName + (result.simInfo ? ` (模拟: ${result.simInfo})` : charName)
+
+    const renderData = {
+      uid: result.uid,
+      name: displayName,
+      level: result.charLevel,
+      cons: result.charCons,
+      elem: result.elem,
+      costumeSplash: charSplash,
+      imgs,
+      talent: {},
+      talentMap,
+      talents,
+      talentIcons,
+      attr,
+      charWeight,
+      charStats: result.charStats,
+      weapon: weaponData,
+      weaponInfo: result.weaponInfo,
+      artis: artisForTemplate,
+      effectiveStats: result.effectiveStats,
+      summary: result.effectiveSummary,
+      version: '1.13.0'
+    }
+
+    try {
+      const img = await this.e.runtime.render(
+        'artifacts-plugin',
+        'artifact-init/artifact-init',
+        renderData,
+        {
+          retType: 'base64',
+          beforeRender ({ data }) {
+            const layoutPath = path.join(_miaoPluginDir, 'resources/common/layout/')
+            return {
+              ...data,
+              elemLayout: layoutPath + 'elem.html',
+              _layout_path: layoutPath,
+              sys: { ...(data.sys || {}), scale: 1.6 },
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.13.0`
+            }
+          }
+        }
+      )
+      if (img) {
+        await this.e.reply(img)
+      }
+    } catch (err) {
+      if (logger?.error) logger.error('[artifacts-plugin] 渲染失败:', err.message)
+      await this.e.reply('图片生成失败: ' + err.message)
+    }
+
+    return true
+  }
+
+  // ---- 基座指令 handler（原有，未改动） ----
   async showArtifactInitPanel () {
     const match = this.e.msg?.match?.(/^#(\d{9,10})?@?([^#\s]+)圣遗物成长值面板$/)
     if (!match) return false
