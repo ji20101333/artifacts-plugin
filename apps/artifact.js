@@ -2380,9 +2380,15 @@ export class artifactInitPanel extends plugin {
       return true
     }
 
-    // 换件来源 UID 可省略: 省略时默认与目标 UID 一致
-    // （resolveUid 已按 绑定UID → 指令内UID → @用户UID 解析出 uid）
-    if (!simOptions.uid) simOptions.uid = uid
+    // 换件来源 UID 可省略: 省略时优先取当前用户已绑定的 UID;
+    // 未绑定时退化为本指令解析出的目标 UID（指令内 UID / @用户 UID / 消息内 UID）
+    if (!simOptions.uid) {
+      let boundUid = ''
+      try {
+        if (this.e.runtime?.getUid) boundUid = await this.e.runtime.getUid()
+      } catch (_) { /* 未绑定 */ }
+      simOptions.uid = boundUid || uid
+    }
 
     const result = await processSimulatedArtifacts(uid, charName, simOptions)
     if (result.error) {
@@ -2494,7 +2500,8 @@ export class artifactInitPanel extends plugin {
       }
     })
 
-    const displayName = charName + (result.simInfo ? ` (模拟: ${result.simInfo})` : charName)
+    // 无模拟标注时只显示角色名 (原实现误把 charName 拼了两次)
+    const displayName = charName + (result.simInfo ? ` (模拟: ${result.simInfo})` : '')
 
     const renderData = {
       uid: result.uid,
