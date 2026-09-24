@@ -33,6 +33,8 @@ let _avgRollValue = {}   // 每个属性词条的平均成长值 (展示量级)
 let _alignmentMap = {}   // 词条对齐值: 以暴伤为基准(1.0), 暴击≈2.0, 大攻击≈1.33
 let _artiBuffs = {}     // artifact set buff configs from calc.js
 let _pieceToSet = {}    // artifact piece name → set name mapping
+let _setAbbr = {}       // 套装缩写 (miao-plugin artifact/alias.js setAbbr, 用于 artis.is('绝缘4') 判定)
+const _artisFnCache = {} // artis.js 模块缓存 (charName → default function | null)
 let _charMeta = {}      // character data.json keyed by numeric ID
 let _weaponById = {}    // weapon data keyed by numeric ID
 let _weaponByName = {}  // weapon data keyed by name
@@ -148,6 +150,20 @@ async function loadStaticData () {
       for (const [pos, piece] of Object.entries(setData.idxs)) {
         if (piece.name) _pieceToSet[piece.name] = setData.name
       }
+    }
+
+    // 2.1 加载套装缩写 (参考 miao-plugin resources/meta-gs/artifact/alias.js → setAbbr)
+    const setAbbrPath = path.join(_miaoPluginDir, 'resources/meta-gs/artifact/alias.js')
+    if (fs.existsSync(setAbbrPath)) {
+      try {
+        const setAbbrMod = await import(pathToFileURL(setAbbrPath))
+        _setAbbr = setAbbrMod.setAbbr || {}
+      } catch (e) {
+        _setAbbr = {}
+        logger.warn(`[artifacts-plugin] 加载套装缩写失败 [artifact/alias.js]: ${e.message}`)
+      }
+    } else {
+      logger.warn('[artifacts-plugin] 未找到套装缩写文件 [artifact/alias.js]')
     }
 
     // 7. 加载角色元数据 (按数字ID索引)
@@ -905,9 +921,123 @@ function getEffectiveStats (charName) {
   return Object.keys(DEFAULT_ARTIS_WEIGHTS)
 }
 
+// ---- artis.js 调用上下文构建 (参考 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
+
+// GS 元素键 (不含 phy): 用于 isAttr 4号位 'dmg' 特例判定 (参考 miao-plugin Format.isElem)
+const _elemOnlyKeys = ['pyro', 'hydro', 'anemo', 'electro', 'cryo', 'geo', 'dendro']
+
+// artis.js 判定所需属性键 (展示量级)
+// 与 miao-plugin AttrData.getAttr() 的返回键集保持一致: baseAttr.gs 全部 12 键 + hp/atk/def 的 Base
+const _artisAttrViewKeys = [
+  'hp', 'atk', 'def', 'mastery', 'recharge', 'cpct', 'cdmg',
+  'dmg', 'phy', 'heal', 'shield', 'coloringDmg',
+  'hpBase', 'atkBase', 'defBase'
+]
+
+// 提取完整面板属性视图 (参考 miao-plugin: 传入 charRule 的 attr 为含圣遗物的完整 AttrData)
+function _buildArtisAttrView (ctx) {
+  const view = {}
+  for (const key of _artisAttrViewKeys) {
+    view[key] = getAttr(ctx, key)
+  }
+  return view
+}
+
+// 角色是否存在 artis.js (结果缓存; 避免每次渲染都 fs.existsSync, 也供 _presetArtisAttr 短路用)
+const _hasArtisJsCache = {}
+function _hasArtisJs (charName) {
+  if (!(charName in _hasArtisJsCache)) {
+    _hasArtisJsCache[charName] = fs.existsSync(
+      path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'artis.js'))
+  }
+  return _hasArtisJsCache[charName]
+}
+
+// 构造各部位主词条 key 映射 {1..5: 'hp'/'atk'/'cpct'/...} (供伪 Artis.isAttr 使用)
+function _buildPosMainKeys (artisData = {}) {
+  const posMainKeys = {}
+  for (let pos = 1; pos <= 5; pos++) {
+    const arti = artisData[pos]
+    if (!arti || !arti.name) continue
+    posMainKeys[pos] = _mainIdMap[arti.mainId] || ''
+  }
+  return posMainKeys
+}
+
+// 构造伪 Artis 对象 (参考 miao-plugin models/artis/Artis.js#is/isAttr + ArtisSet.js#getSetData)
+function _buildMockArtis (setCounts = {}, posMainKeys = {}) {
+  // 套装判定串: 仅统计件数>=2的套装, count = 件数>=4 ? 4 : 2
+  // abbrs = [缩写+count, 完整套名+count] (缩写取自 miao-plugin artifact/alias.js setAbbr)
+  const abbrs = []
+  for (const [setName, count] of Object.entries(setCounts)) {
+    if ((count || 0) >= 2) {
+      const c = count >= 4 ? 4 : 2
+      // alias.js 缺失时的兜底: '绝缘之旗印' 是唯一被 artis.js 套装判定使用的缩写
+      const abbr = (_setAbbr && _setAbbr[setName]) || (setName === '绝缘之旗印' ? '绝缘' : setName)
+      abbrs.push(abbr + c, setName + c)
+    }
+  }
+  const mainByPos = {}
+  for (let pos = 1; pos <= 5; pos++) {
+    mainByPos[pos] = posMainKeys[pos] || ''
+  }
+  // 参考 miao-plugin Data.eachStr: 中文分隔符 (; ； 、 ，) 归一为半角逗号后切分
+  // miao 的归一正则未加 g 标志, 只替换首个分隔符; 此处统一全局替换, 对多分隔符输入更稳
+  const splitStr = (v) => String(v)
+    .replace(/\s*[;；、，]\s*/g, ',')
+    .split(',').map(s => s.trim()).filter(Boolean)
+
+  return {
+    // 参考 Artis.js#is: check 为分隔符分隔的多值 (Data.eachStr), 任一命中套装串即 true
+    is (check, pos = '') {
+      if (pos) return this.isAttr(check, pos)
+      return splitStr(check).some(s => abbrs.includes(s))
+    },
+    // 参考 Artis.js#isAttr: 逐位置核对该部位主词条; 4号位特例: 含 'dmg' 且该位置主词条为元素伤时视为命中
+    isAttr (attr, pos = '') {
+      pos = pos || '3,4,5'
+      const attrs = String(attr).split(',').map(s => s.trim())
+      let check = true
+      for (const p of splitStr(pos)) {
+        const posAttr = mainByPos[p]
+        if (!attrs.includes(posAttr)) {
+          if (p === '4' && attrs.includes('dmg') && _elemOnlyKeys.includes(posAttr)) continue
+          check = false
+        }
+      }
+      return check
+    }
+  }
+}
+
+// 预扫描圣遗物: 在 baseCtx (角色白值+武器+套装静态Buff) 基础上累加全部主/副词条,
+// 得到与 miao-plugin profile.attr 等价的完整属性上下文 (仅用于 artis.js 判定, 不影响主流程评分)
+function _presetArtisAttr (baseCtx, artisData = {}, elem, charName, charLevel, charCons) {
+  const ctx = createAttrData()
+  for (const key of Object.keys(ctx._attr)) {
+    ctx._attr[key] = { ...baseCtx._attr[key] }
+    ctx._base[key] = baseCtx._base[key] || 0
+  }
+  for (let pos = 1; pos <= 5; pos++) {
+    const arti = artisData[pos]
+    if (!arti || !arti.name) continue
+    const { level = 0, star = 5, mainId, attrIds = [] } = arti
+    const mainKey = _mainIdMap[mainId] || '未知'
+    calcArtisAttr(ctx, mainKey, calcMainValue(mainKey, level, star), elem)
+    const normalizedAttrIds = normalizeAttrIds(attrIds, charName, charLevel, charCons)
+    for (const sh of calcSubstatHistory(normalizedAttrIds)) {
+      calcArtisAttr(ctx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
+    }
+  }
+  return ctx
+}
+
 // ---- 获取调整后的词条权重 (参考 miao-plugin ArtisMarkCfg.getCharArtisCfg) ----
 // 处理: 角色专属artis.js规则 → 武器权重调整 → 套装调整
-async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, attrCtx = null) {
+// artisInfo: { attrCtx: 含圣遗物的完整面板属性, posMainKeys: {1..5: 主词条key},
+//              cons: 命座数, elem: 角色元素, bonusKey: 武器副词缀key }
+async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, setCounts = {}, artisInfo = {}) {
+  const { attrCtx = null, posMainKeys = {}, cons = 0, elem = '', bonusKey = '' } = artisInfo
   const rawWeights = _usefulAttr[charName] || { ...DEFAULT_ARTIS_WEIGHTS }
   const wn = weaponName || ''
 
@@ -945,51 +1075,58 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
     return weights
   }
 
-  // 尝试加载角色专属artis.js (参考 miao-plugin char.getArtisCfg)
-  const artisJsPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'artis.js')
-  if (fs.existsSync(artisJsPath)) {
+  // 尝试加载角色专属artis.js (参考 miao-plugin char.getArtisCfg); 模块按角色缓存, 避免每次渲染重复 import
+  let artisFn = _artisFnCache[charName]
+  if (artisFn === undefined) {
+    if (_hasArtisJs(charName)) {
+      try {
+        const artisJsPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'artis.js')
+        artisFn = (await import(pathToFileURL(artisJsPath))).default
+      } catch (e) {
+        logger.warn(`[artifacts-plugin] 加载artis.js失败 [${charName}]: ${e.message}`)
+      }
+    }
+    _artisFnCache[charName] = artisFn || null
+  }
+
+  if (typeof artisFn === 'function') {
     try {
-      const artisMod = await import(pathToFileURL(artisJsPath))
-      const artisFn = artisMod.default
-      if (typeof artisFn === 'function') {
-        let useAdjusted = false // true=def (需要调整), false=rule (不调整)
-        let finalWeights = null
+      let useAdjusted = false // true=def (需要调整), false=rule (不调整)
+      let finalWeights = null
 
-        // mock def: 合并权重后由applyDefaultAdjustments统一调整 (参考 miao-plugin)
-        const def = (attrWeight) => {
-          useAdjusted = true
-          finalWeights = { ...rawWeights, ...attrWeight }
-          return { title: `${charName}-通用`, attrWeight: finalWeights }
-        }
+      // mock def: 整体使用传入权重, 未列出的键不回填默认权重 (参考 miao-plugin: extend({}, attrWeight || usefulAttr[char.name] || {}))
+      const def = (attrWeight) => {
+        useAdjusted = true
+        finalWeights = { ...(attrWeight || rawWeights) }
+        return { title: `${charName}-通用`, attrWeight: finalWeights }
+      }
 
-        // mock rule: 直接使用传入权重, 不做任何调整 (参考 miao-plugin)
-        const rule = (title, attrWeight) => {
-          useAdjusted = false
-          finalWeights = { ...attrWeight }
-          return { title, attrWeight: finalWeights }
-        }
+      // mock rule: 直接使用传入权重, 不做任何调整 (参考 miao-plugin)
+      const rule = (title, attrWeight) => {
+        useAdjusted = false
+        finalWeights = { ...attrWeight }
+        return { title, attrWeight: finalWeights }
+      }
 
-        // 提供当前属性上下文 (用于 artis.js 中的 attr.mastery 等判断)
-        const attr = attrCtx ? {
-          mastery: (attrCtx.masteryBase || 0) + (attrCtx.masteryPlus || 0) + ((attrCtx.masteryPct || 0) / 100 * (attrCtx.masteryBase || 0) || 0)
-        } : {}
+      // 完整面板属性 + 伪 Artis 对象 (参考 miao-plugin: charRule({ attr, elem, artis, rule, def, weapon, cons }))
+      const attr = attrCtx ? _buildArtisAttrView(attrCtx) : {}
+      const artis = _buildMockArtis(setCounts, posMainKeys)
 
-        const weapon = { name: wn, affix: weaponAffix }
+      const weapon = { name: wn, affix: weaponAffix, bonusKey }
 
-        artisFn({ attr, weapon, rule, def })
+      artisFn({ attr, elem, artis, rule, def, weapon, cons })
 
-        if (finalWeights) {
-          if (useAdjusted) {
-            // def 路径: 应用武器/套装调整
-            return applyDefaultAdjustments(finalWeights)
-          } else {
-            // rule 路径: 直接返回 (不做任何调整)
-            return finalWeights
-          }
+      if (finalWeights) {
+        if (useAdjusted) {
+          // def 路径: 应用武器/套装调整
+          return applyDefaultAdjustments(finalWeights)
+        } else {
+          // rule 路径: 直接返回 (不做任何调整)
+          return finalWeights
         }
       }
     } catch (e) {
-      logger.warn(`[artifacts-plugin] 加载artis.js失败 [${charName}]: ${e.message}`)
+      logger.warn(`[artifacts-plugin] 执行artis.js失败 [${charName}]: ${e.message}`)
     }
   }
 
@@ -1002,11 +1139,10 @@ async function _getAdjustedWeights (charName, weaponName = '', weaponAffix = 1, 
 // adjustedWeights: 已经过武器/套装/角色规则调整的最终权重
 function _buildCharMarkTable (charName, charMeta, adjustedWeights) {
   const baseAttr = charMeta?.baseAttr || getCharBaseAttr(charName) || { hp: 14000, atk: 230, def: 700 }
-  // 以 _usefulAttr 为基准, 仅合并非 undefined 的 adjustedWeights (防止 undefined 覆盖有效权重)
-  // 未知角色 (如新角色未录入 artis-mark.js) 回退到默认权重, 与 miao-plugin 行为一致
-  const baseW = _usefulAttr[charName] || { ...DEFAULT_ARTIS_WEIGHTS }
+  // adjustedWeights 已是完整最终权重 (artis.js rule/def 或 默认+武器/套装修正), 为唯一权威来源
+  // 缺失或 <=0 的键即无权重, 不回填 _usefulAttr (对齐 miao-plugin getCfg: !weight || weight*1 === 0 → skip)
   const adjW = adjustedWeights || {}
-  const weights = { ...baseW }
+  const weights = {}
   for (const k of Object.keys(adjW)) {
     if (adjW[k] !== undefined && adjW[k] > 0) weights[k] = adjW[k]
   }
@@ -1394,8 +1530,15 @@ async function processArtifacts (uid, charName) {
     return key
   }
   // ---- 构建角色评分系数表 & 位置理论最高分 (参考 miao-plugin) ----
+  // 预扫描圣遗物得到完整面板属性 (参考 miao-plugin: getCharArtisCfg 时 profile.attr 已含圣遗物累加)
+  // 仅当角色存在 artis.js 时才需要 —— 无 artis.js 时 attr 不会被读取, 跳过可省掉一次圣遗物解析
+  const fullAttrCtx = _hasArtisJs(charName)
+    ? _presetArtisAttr(attrCtx, artisData, elem, charName, charLevel, charCons)
+    : null
+  const posMainKeys = _buildPosMainKeys(artisData)
   const adjustedWeights = await _getAdjustedWeights(charName,
-    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts, attrCtx)
+    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts,
+    { attrCtx: fullAttrCtx, posMainKeys, cons: charCons, elem, bonusKey: weaponInfo?.bonusKey || '' })
   const markTable = _buildCharMarkTable(charName, charMeta, adjustedWeights)
   const posMaxMark = _computePosMaxMark(markTable)
   const maxWeightByPos = markTable._maxWeightByPos
@@ -1900,8 +2043,15 @@ async function _runAttrPipeline ({
   }
 
   // ---- 评分系数 ----
+  // 预扫描圣遗物得到完整面板属性 (参考 miao-plugin: getCharArtisCfg 时 profile.attr 已含圣遗物累加)
+  // 判定依据是评分角色 (scoringCharName) 的 artis.js —— _getAdjustedWeights 加载的正是它
+  const fullAttrCtx = _hasArtisJs(scoringCharName)
+    ? _presetArtisAttr(attrCtx, artisData, elem, charName, charLevel, charCons)
+    : null
+  const posMainKeys = _buildPosMainKeys(artisData)
   const adjustedWeights = await _getAdjustedWeights(scoringCharName,
-    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts, attrCtx)
+    weaponInfo?.name || '', weaponInfo?.affix || 1, setCounts,
+    { attrCtx: fullAttrCtx, posMainKeys, cons: charCons, elem, bonusKey: weaponInfo?.bonusKey || '' })
   const markTable = _buildCharMarkTable(scoringCharName, charMeta, adjustedWeights)
   const posMaxMark = _computePosMaxMark(markTable)
   const currWeights = markTable._weights
