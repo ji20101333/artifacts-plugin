@@ -2,7 +2,7 @@
 
 [![Gitee](https://img.shields.io/badge/Gitee-artifacts--plugin-orange)](https://gitee.com/ji20101333/artifacts-plugin)
 [![English](https://img.shields.io/badge/README-English-blue)](./README.en.md)
-[![Version](https://img.shields.io/badge/version-1.13.4-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.14.0-brightgreen)]()
 
 圣遗物成长值面板插件 - 基于 Miao-Yunzai（TRSS-Yunzai），展示角色圣遗物初始值及副词条成长历史。
 
@@ -37,7 +37,22 @@
 
 若无角色/UID 绑定的圣遗物数据，返回相应错误提示。
 
-### 2. 圣遗物评分公式
+### 2. 模拟面板（换件 / 换角色 / 换武器）
+
+在上述指令后追加 `换...` 条件段，即可在**不修改真实数据**的前提下模拟面板：
+
+| 格式 | 示例 | 说明 |
+|------|------|------|
+| `换{UID}{角色名}{部件名}` | `#甘雨圣遗物成长值面板换165914169优菈花` | 换上指定 UID 角色的一件圣遗物 |
+| `换{角色名}{部件名}` | `#甘雨圣遗物成长值面板换优菈花` | **UID 可省略**，默认沿用目标 UID（见下） |
+| 追加 `换{等级}级{角色名}` | `...#换优菈花换90级甘雨` | 额外把整个面板换成该角色 |
+| 追加 `换{武器名}` | `...#换优菈花换雾切之回光` | 额外更换武器（等级用 `换90级雾切之回光`） |
+
+**UID 省略时的解析顺序**：与目标面板共用 `resolveUid` —— 指令内 UID（`#100000001甘雨...`）→ @用户绑定 UID（`#@甘雨...`）→ 当前用户绑定 UID（`#绑定`）→ 消息内 UID。即"换上谁的花"默认与"看谁的面板"同一账号。
+
+部件名支持 `花`/`羽`/`沙`/`杯`/`头` 及 `生之花`/`死之羽`/`时之沙`/`空之杯`/`理之冠`；来源角色名同样支持别名。
+
+### 3. 圣遗物评分公式
 
 评分公式参考 [Miao-Plugin](https://gitcode.com/TimeRainStarSky/miao-plugin.git) 的 `ArtisMark.js` / `ArtisMarkCfg.js`：
 
@@ -62,7 +77,7 @@
 | ACE  | < 56 | < 280 |
 | MAX  | ≥ 56 | ≥ 280 |
 
-### 3. 插件更新
+### 4. 插件更新
 
 指令：`#圣遗物成长值插件更新` / `#圣遗物成长值插件强制更新`
 

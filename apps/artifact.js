@@ -11,10 +11,21 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import fs from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { pathToFileURL, fileURLToPath } from 'node:url'
 
 const _cwd = process.cwd()
 const _miaoPluginDir = path.resolve(_cwd, 'plugins/miao-plugin')
+
+// 插件版本号: 从 package.json 读取, 避免图片页脚等处硬编码版本号漂移
+// (发版时只需同步 package.json / update.js / README / Intro.md 四处)
+const _pluginVersion = (() => {
+  try {
+    const pkgPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../package.json')
+    return JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version || ''
+  } catch (_) {
+    return ''
+  }
+})()
 
 // ---- 静态数据缓存 ----
 let _attrIdMap, _mainIdMap, _attrMap, _aliasData, _artiData, _mainAttrData, _usefulAttr
@@ -585,6 +596,11 @@ function formatMainValue (key, value) {
 }
 
 // ---- 副词条成长历史计算 ----
+// attrIds 支持两种格式:
+//   Enka 格式: 平铺数字数组 [501244, 501224, 501224, ...] — 每项为一个独立的副词条roll
+//   HomoApi 格式: ["501244,1,0", "501224,6,0", ...] — 每项为 "id,cnt,step"，cnt=roll次数
+// 突破属性（如丽莎突破精通）可能被 Mihomo 编码进 artifact 的 attrIds，
+// 需在计算成长历史前过滤，否则会被误认为副词条"初始值"。
 function calcSubstatHistory (attrIds) {
   if (!attrIds || attrIds.length === 0) return []
 
@@ -620,19 +636,269 @@ function calcSubstatHistory (attrIds) {
   })
 }
 
-// ---- 获取角色有效词条 ----
+// ---- 突破属性相关辅助函数 ----
+
+// 突破属性键 → 圣遗物副词条键 (即 attrIdMap 中使用的 key)
+// 角色的 attr.keys[3] 可能是 hpPct/atkPct/defPct 等带 Pct 后缀的写法 (如沃雅妮莎突破生命%),
+// 而 attrIdMap 中对应的是无后缀的 hp/atk/def, 故需显式映射, 否则过滤逻辑对这些角色完全失效。
+// heal/dmg/phy 只作为主词条出现, 不可能混进 attrIds, 故不映射。
+const _breakthroughStatKeyMap = {
+  hp: 'hp', hpBase: 'hp', hpPct: 'hp',
+  atk: 'atk', atkBase: 'atk', atkPct: 'atk',
+  def: 'def', defBase: 'def', defPct: 'def',
+  mastery: 'mastery',
+  cpct: 'cpct', cdmg: 'cdmg',
+  recharge: 'recharge'
+}
+
+// 获取角色的突破属性条目: { key: 对应副词条键, idx: 在 attr.keys 中的下标, rawKey: 原始键名 }
+// 从 growAttr 或 attr.keys 推断
+function _getBreakthroughStatEntry (charName) {
+  const detail = loadCharDetailAttr(charName)
+  if (!detail) return null
+  const keys = detail.keys || []
+  // 突破属性是 keys[3]（如果有），或之后第一个非 Base 键
+  for (let i = 3; i < keys.length; i++) {
+    const k = keys[i]
+    if (!/Base$/.test(k) && _breakthroughStatKeyMap[k]) {
+      return { key: _breakthroughStatKeyMap[k], idx: i, rawKey: k }
+    }
+  }
+  return null
+}
+
+// 计算角色在当前等级/突破下的突破属性值
+// 从 character data.json 的 attr.details 中读取突破等阶对应的纯突破值
+// 使用 "level+" 条目（如 "20+", "40+"）获取不含基础值的纯突破贡献
+function _getExpectedBreakthroughValue (charName, charLevel, charCons) {
+  const detail = loadCharDetailAttr(charName)
+  if (!detail) return 0
+  const { details } = detail
+  // 突破属性所在下标必须取自 attr.keys (不能用 keys.indexOf(mappedKey):
+  // hpPct/atkPct/defPct 这类键在 keys 中并不存在无后缀写法)
+  const btEntry = _getBreakthroughStatEntry(charName)
+  if (!btEntry) return 0
+  const btIdx = btEntry.idx
+  if (btIdx < 3) return 0  // 突破属性至少在第4个位置
+
+  // 计算突破等阶（C0=0, C1=1, ..., C6=6），受限于角色命座
+  const lvStep = [1, 20, 40, 50, 60, 70, 80, 90, 100]
+  let promote = 0
+  for (let idx = 0; idx < lvStep.length - 1; idx++) {
+    if (charLevel >= lvStep[idx] && charLevel <= lvStep[idx + 1]) break
+    promote++
+  }
+  promote = Math.min(promote, charCons)
+  if (promote <= 0) return 0  // C0 无突破属性
+
+  // 获取该突破等阶的纯突破值（从 "level+" 条目读取，不含基础值）
+  const btLevelKey = lvStep[promote] + '+'
+  const btDetail = details[btLevelKey]
+  if (!btDetail || !Array.isArray(btDetail)) return 0
+  const btValue = btDetail[btIdx]
+  if (typeof btValue !== 'number') return 0
+
+  // 在角色等级与下一突破等级之间线性插值（处理等级区间内的过渡）
+  const nextPromote = Math.min(promote + 1, 6)
+  const nextBtLevelKey = lvStep[nextPromote] + '+'
+  const nextBtDetail = details[nextBtLevelKey]
+  if (!nextBtDetail || !Array.isArray(nextBtDetail)) return Math.round(btValue)
+
+  const nextBtValue = nextBtDetail[btIdx]
+  if (btValue === nextBtValue) return Math.round(btValue)
+
+  const btLvLeft = lvStep[promote]
+  const btLvRight = lvStep[nextPromote]
+  if (btLvRight <= btLvLeft) return Math.round(btValue)
+
+  const ratio = (charLevel - btLvLeft) / (btLvRight - btLvLeft)
+  return Math.round(btValue + (nextBtValue - btValue) * ratio)
+}
+
+// 获取角色的基础属性值（Lv.1 时的数值，不含任何突破加成）
+// 用于过滤 Mihomo API 可能编码进圣遗物 attrIds 的基础属性值
+// 例如：奈芙尔基础精通 100，如果 Mihomo 将其编码进 attrIds，需过滤掉
+function _getBaseStatValue (charName, statKey) {
+  const detail = loadCharDetailAttr(charName)
+  if (!detail) return 0
+  const { keys, details } = detail
+  const idx = keys.indexOf(statKey)
+  if (idx < 0) return 0
+  const lv1Detail = details['1']
+  if (!lv1Detail || !Array.isArray(lv1Detail) || idx >= lv1Detail.length) return 0
+  const val = lv1Detail[idx]
+  return typeof val === 'number' ? Math.round(val) : 0
+}
+
+// ---- attrIds 混入项判定辅助 ----
+
+// attrIdMap 中每个副词条的全部合法 roll 值（展示量级）
+let _subRollValues = null
+function _getSubRollValues (key) {
+  if (!_subRollValues) {
+    _subRollValues = {}
+    for (const cfg of Object.values(_attrIdMap || {})) {
+      if (!cfg || !cfg.key || !cfg.value) continue
+      const v = toDisplayValue(cfg.key, cfg.value)
+      ;(_subRollValues[cfg.key] = _subRollValues[cfg.key] || []).push(v)
+    }
+  }
+  return _subRollValues[key] || []
+}
+
+// 该值是否可能是该副词条的一次正常 roll
+function _isLegitSubRoll (key, displayValue) {
+  return _getSubRollValues(key).some(v => Math.abs(v - displayValue) < 0.5)
+}
+
+// 在 expanded 中查找某副词条键首次出现的下标
+function _findFirstKeyIdx (expanded, key) {
+  for (let i = 0; i < expanded.length; i++) {
+    const cfg = _attrIdMap[expanded[i]]
+    if (cfg && cfg.key === key) return i
+  }
+  return -1
+}
+
+// 判定"被 Mihomo 编码进 attrIds 的角色突破/基础属性值"并移除
+// expectDisplayValue 为展示量级；attrIdMap 的 value 对 pct 类词条是十进制，
+// 必须经 toDisplayValue 统一到展示量级再比较，否则百分比类词条永远匹配不上。
+//
+// 已知限制：attrIdMap 的 170 个 id 只编码规范 roll 值，形如 28.8 / 96 的突破值
+// 根本没有对应 id，因此该判定实际只可能在"突破值恰好撞上某个合法 roll"时命中
+// （如 40 级突破生命% = 6 与生命%最大 roll 5.83）。而撞车正是无法区分的情形，
+// 故此处用 _isLegitSubRoll 守卫跳过 —— 宁可漏删一个混入项，也不能误删真实副词条
+// 而破坏成长历史。守卫同时保证：日后若有人对齐单位，不会让 27 个 Lv.40 角色的
+// 首个最大档生命%/攻击%副词条被静默删除。
+function _dropInjectedEntry (expanded, key, expectDisplayValue) {
+  const idx = _findFirstKeyIdx(expanded, key)
+  if (idx < 0) return false
+  const cfg = _attrIdMap[expanded[idx]]
+  if (!cfg) return false
+  const display = toDisplayValue(cfg.key, cfg.value)
+  if (Math.abs(display - expectDisplayValue) >= 0.5) return false
+  if (_isLegitSubRoll(key, expectDisplayValue)) return false
+  expanded.splice(idx, 1)
+  return true
+}
+
+// 规范化圣遗物 attrIds:
+// 1. 识别 HomoApi 格式 ("id,cnt,step") 并展开为平铺数字数组
+// 2. 过滤掉突破属性值（如丽莎突破精通 96、沃雅妮莎突破生命% 28.8）
+// 3. 过滤掉基础属性值（如奈芙尔基础精通 100）
+// 注意：步骤 2 和 3 依赖 miao-plugin 角色数据的完整性
+function normalizeAttrIds (attrIds, charName, charLevel, charCons) {
+  if (!attrIds || attrIds.length === 0) return []
+
+  // 计算角色当前等级下的突破属性期望值（用于过滤）
+  const btEntry = _getBreakthroughStatEntry(charName)
+  const btStatKey = btEntry?.key || null
+  const expectedBtValue = btStatKey
+    ? _getExpectedBreakthroughValue(charName, charLevel, charCons)
+    : 0
+
+  // 第一步：展开 HomoApi 格式并收集所有 ID
+  const expanded = []
+  for (let i = 0; i < attrIds.length; i++) {
+    const entry = attrIds[i]
+    if (typeof entry === 'string' && entry.includes(',')) {
+      // HomoApi 格式: "id,cnt,step"
+      const parts = entry.split(',')
+      const id = parseInt(parts[0])
+      const cnt = parseInt(parts[1]) || 1
+      if (!isNaN(id) && cnt > 0) {
+        for (let c = 0; c < cnt; c++) expanded.push(id)
+      }
+    } else {
+      const id = typeof entry === 'string' ? parseInt(entry) : entry
+      if (!isNaN(id)) expanded.push(id)
+    }
+  }
+
+  // 第二步：过滤突破属性值（突破属性通常在列表前面）
+  if (expectedBtValue > 0 && btStatKey) {
+    _dropInjectedEntry(expanded, btStatKey, expectedBtValue)
+  }
+
+  // 第三步：过滤基础属性值（Mihomo 可能将角色基础属性编码进圣遗物 attrIds）
+  // 检查 attr.keys 中每个非突破属性的 stat，如果 Lv.1 值 > 0 且与 attrIds 首次出现匹配，则过滤
+  const detail = loadCharDetailAttr(charName)
+  if (detail && detail.keys && detail.details) {
+    const lv1Detail = detail.details['1']
+    if (lv1Detail && Array.isArray(lv1Detail)) {
+      for (let ki = 0; ki < detail.keys.length; ki++) {
+        const statKey = detail.keys[ki]
+        // 跳过突破属性（已在第二步处理）和 Base 后缀键
+        if (statKey === btEntry?.rawKey || /Base$/.test(statKey)) continue
+        // 只处理在 _breakthroughStatKeyMap 中的主属性
+        const mappedKey = _breakthroughStatKeyMap[statKey]
+        if (!mappedKey) continue
+        // 获取 Lv.1 时的基础值
+        if (ki >= lv1Detail.length) continue
+        const baseVal = lv1Detail[ki]
+        if (typeof baseVal !== 'number' || baseVal <= 0) continue
+        _dropInjectedEntry(expanded, mappedKey, baseVal)
+      }
+    }
+  }
+
+  // 第四步：过滤 miao-plugin Characters 数组中的特殊基础属性
+  // miao-plugin Attr.js 中有硬编码的角色基础属性（不在 character data.json 中）
+  // 例如：奈芙尔(10000122) mastery=100, 菈乌玛(10000119) mastery=200
+  // 这些基础属性可能被 Mihomo 编码进圣遗物 attrIds
+  const charMeta = findCharMetaByName(charName)
+  const _charSpecialBaseStats = {
+    10000122: { mastery: 100 },  // 奈芙尔
+    10000119: { mastery: 200 }   // 菈乌玛
+  }
+  const charSpecial = _charSpecialBaseStats[charMeta?.id]
+  if (charSpecial && detail) {
+    for (const [statKey, baseVal] of Object.entries(charSpecial)) {
+      // 跳过已在前面处理过的突破属性
+      if (statKey === btStatKey) continue
+      _dropInjectedEntry(expanded, statKey, baseVal)
+    }
+  }
+
+  return expanded
+}
+
+
+// ---- 角色有效词条 ----
+
+// liangshi-calc 的 mainAttr.js 目前只覆盖到 5.x，6.0 之后的新角色（如沃雅妮莎、薇斯纳）
+// 在其中查不到定义。此时退回 miao-plugin 角色自带的 calc.js —— 它同样导出 mainAttr，
+// 是 miao-plugin 侧维护的同一份角色有效词条声明。结果按角色名缓存。
+let _charMainAttrCache = {}
+function _getCharMainAttrFromCalc (charName) {
+  if (charName in _charMainAttrCache) return _charMainAttrCache[charName]
+  let result = null
+  try {
+    const calcPath = path.join(_miaoPluginDir, 'resources/meta-gs/character', charName, 'calc.js')
+    if (fs.existsSync(calcPath)) {
+      const src = fs.readFileSync(calcPath, 'utf-8')
+      const match = src.match(/export\s+const\s+mainAttr\s*=\s*['"]([^'"]*)['"]/)
+      if (match && match[1]) {
+        result = match[1].split(',').map(s => s.trim()).filter(Boolean)
+      }
+    }
+  } catch (_) { /* 读取失败则继续回退 */ }
+  _charMainAttrCache[charName] = result
+  return result
+}
+
 function getEffectiveStats (charName) {
-  if (!_mainAttrData) {
-    // fallback: 从 artis-mark.js 获取权重>0的词条
-    const w = _usefulAttr[charName] || {}
-    return Object.keys(w).filter(k => w[k] > 0 && k !== 'dmg' && k !== 'phy')
+  if (_mainAttrData) {
+    if (_mainAttrData[charName]) return _mainAttrData[charName].split(',')
+    for (const key of Object.keys(_mainAttrData)) {
+      if (key.startsWith(charName + '/')) return _mainAttrData[key].split(',')
+    }
   }
-  if (_mainAttrData[charName]) return _mainAttrData[charName].split(',')
-  for (const key of Object.keys(_mainAttrData)) {
-    if (key.startsWith(charName + '/')) return _mainAttrData[key].split(',')
-  }
-  // fallback: 从 artis-mark.js 获取权重>0的词条
-  const w = _usefulAttr[charName] || DEFAULT_ARTIS_WEIGHTS
+  // fallback 1: miao-plugin 角色 calc.js 的 mainAttr（新角色的主要来源）
+  const fromCalc = _getCharMainAttrFromCalc(charName)
+  if (fromCalc && fromCalc.length > 0) return fromCalc
+  // fallback 2: 从 artis-mark.js 获取权重>0的词条
+  const w = _usefulAttr?.[charName] || DEFAULT_ARTIS_WEIGHTS
   if (Object.keys(w).length > 0) {
     return Object.keys(w).filter(k => w[k] > 0 && k !== 'dmg' && k !== 'phy')
   }
@@ -1165,7 +1431,9 @@ async function processArtifacts (uid, charName) {
     calcArtisAttr(attrCtx, mainKey, mainVal, elem)
 
     // 副词条 (attrIdMap 为十进制, 需转为展示量级后加入属性计算)
-    const subHistory = calcSubstatHistory(attrIds)
+    // 规范化: 展开 HomoApi 格式 ("id,cnt,step") → 平铺数字数组，并过滤突破属性值
+    const normalizedAttrIds = normalizeAttrIds(attrIds, charName, charLevel, charCons)
+    const subHistory = calcSubstatHistory(normalizedAttrIds)
     for (const sh of subHistory) {
       calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
     }
@@ -1485,7 +1753,8 @@ function _buildSimInfo (opts, swapFromLabel) {
 }
 
 // 解析模拟指令条件段
-// simPart 格式: "换{uid}{角色名}{部件名}[换{等级}级{角色名或武器名}]"
+// simPart 格式: "换[{uid}]{角色名}{部件名}[换{等级}级{角色名或武器名}]"
+// uid 可省略 —— 省略时由调用方回填为目标 UID（绑定 UID / 指令内 UID / @用户 UID）
 function parseSimOptions (simPart) {
   const options = {}
   if (!simPart || !simPart.includes('换')) return options
@@ -1495,12 +1764,12 @@ function parseSimOptions (simPart) {
   const segments = content.split('换').filter(s => s.length > 0)
   if (segments.length === 0) return options
 
-  // 第一段（必选）: {uid}{角色名}{部件名}
+  // 第一段（必选）: [{uid}]{角色名}{部件名}, uid 可省略
   const first = segments[0]
   const uidMatch = first.match(/^(\d{9,10})/)
-  if (!uidMatch) return options
-  options.uid = uidMatch[1]
-  const rest = first.slice(uidMatch[1].length)
+  if (uidMatch) options.uid = uidMatch[1]
+  const rest = uidMatch ? first.slice(uidMatch[1].length) : first
+  if (!rest) return options
 
   const knownPieces = ['生之花', '死之羽', '时之沙', '空之杯', '理之冠', '花', '羽', '沙', '杯', '头']
   knownPieces.sort((a, b) => b.length - a.length)
@@ -1513,7 +1782,8 @@ function parseSimOptions (simPart) {
       break
     }
   }
-  if (!pieceFound) return options
+  // 来源角色名不可为空（如 "换花" 只给了部件）
+  if (!pieceFound || !options.sourceCharName) return {}
 
   // 第二段（可选）: 换{等级}级{角色名/武器名} 或 换{角色名/武器名}
   if (segments.length > 1) {
@@ -1671,7 +1941,9 @@ async function _runAttrPipeline ({
     calcArtisAttr(attrCtx, mainKey, mainVal, elem)
 
     // 副词条
-    const subHistory = calcSubstatHistory(attrIds)
+    // 规范化: 展开 HomoApi 格式 ("id,cnt,step") → 平铺数字数组，并过滤突破属性值
+    const normalizedAttrIds = normalizeAttrIds(attrIds, charName, charLevel, charCons)
+    const subHistory = calcSubstatHistory(normalizedAttrIds)
     for (const sh of subHistory) {
       calcArtisAttr(attrCtx, sh.key, toDisplayValue(sh.key, sh.totalValue), elem)
     }
@@ -1720,7 +1992,7 @@ async function _runAttrPipeline ({
       }
       if (mainKey !== 'recharge') {
         const mainWeight = currWeights[scoreKey] || 0
-        const posMaxW = maxWeightByPos[pos] || 100
+        const posMaxW = markTable._maxWeightByPos?.[pos] || 100
         fixPct = Math.max(0, Math.min(1, mainWeight / posMaxW))
         if (['atk', 'hp', 'def'].includes(scoreKey) && mainWeight >= 75) {
           fixPct = 1
@@ -2090,9 +2362,9 @@ export class artifactInitPanel extends plugin {
     }
 
     const simOptions = parseSimOptions(simPart)
-    // 验证必选项：uid / sourceCharName / piece
-    if (!simOptions.uid || !simOptions.sourceCharName || !simOptions.piece) {
-      await this.e.reply('模拟条件格式错误，正确格式：换{UID}{角色名}{部件名}，例如：换165914169优菈花')
+    // 验证必选项：来源角色名 / 部件名（uid 可省略）
+    if (!simOptions.sourceCharName || !simOptions.piece) {
+      await this.e.reply('模拟条件格式错误，正确格式：换[UID]{角色名}{部件名}，例如：换优菈花 或 换165914169优菈花')
       return true
     }
 
@@ -2107,6 +2379,10 @@ export class artifactInitPanel extends plugin {
       await this.e.reply('未找到该用户绑定的UID，请先使用【#绑定+你的UID】来绑定查询目标')
       return true
     }
+
+    // 换件来源 UID 可省略: 省略时默认与目标 UID 一致
+    // （resolveUid 已按 绑定UID → 指令内UID → @用户UID 解析出 uid）
+    if (!simOptions.uid) simOptions.uid = uid
 
     const result = await processSimulatedArtifacts(uid, charName, simOptions)
     if (result.error) {
@@ -2240,7 +2516,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.13.0'
+      version: _pluginVersion
     }
 
     try {
@@ -2257,7 +2533,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.13.0`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v${_pluginVersion}`
             }
           }
         }
@@ -2423,7 +2699,7 @@ export class artifactInitPanel extends plugin {
       artis: artisForTemplate,
       effectiveStats: result.effectiveStats,
       summary: result.effectiveSummary,
-      version: '1.13.0'
+      version: _pluginVersion
     }
 
     try {
@@ -2443,7 +2719,7 @@ export class artifactInitPanel extends plugin {
               elemLayout: layoutPath + 'elem.html',
               _layout_path: layoutPath,
               sys: { ...(data.sys || {}), scale: 1.6 },
-              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v1.13.0`
+              copyright: `Created By TRSS-Yunzai & Miao-Plugin & liangshi-calc · Artifacts-Plugin v${_pluginVersion}`
             }
           }
         }
