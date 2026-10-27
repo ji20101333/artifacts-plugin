@@ -1863,6 +1863,19 @@ function _pieceNameToPos (pieceName) {
   return map[pieceName] || null
 }
 
+// 按名称查找玩家 avatars 中的角色 (精确优先, 其次模糊)
+function _findAvatarByName (avatars, name) {
+  if (!avatars || !name) return null
+  let fuzzy = null
+  for (const avatar of Object.values(avatars)) {
+    const avatarName = avatar?.name || ''
+    if (!avatarName) continue
+    if (avatarName === name) return avatar
+    if (!fuzzy && (avatarName.includes(name) || name.includes(avatarName))) fuzzy = avatar
+  }
+  return fuzzy
+}
+
 // 判断名称是角色还是武器（用于模拟指令中区分换角色/换武器）
 function _resolveSimNameType (name) {
   // 先查角色别名
@@ -1878,21 +1891,6 @@ function _resolveSimNameType (name) {
   }
   // 默认当作角色
   return 'character'
-}
-
-// 构建模拟说明文本
-function _buildSimInfo (opts, swapFromLabel) {
-  const parts = []
-  if (swapFromLabel) parts.push(`换件: ${swapFromLabel}`)
-  if (opts.simName) {
-    const type = _resolveSimNameType(opts.simName)
-    if (type === 'character') {
-      parts.push(opts.simLevel ? `${opts.simLevel}级${opts.simName}` : opts.simName)
-    } else {
-      parts.push(opts.simName + (opts.simLevel ? `${opts.simLevel}级` : ''))
-    }
-  }
-  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 // 解析模拟指令条件段
@@ -2390,11 +2388,16 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
   // simType === 'character': 换角色; 'weapon': 换武器; null: 不换
 
   const targetCharName = simType === 'character' ? simName : charName
-  const targetCharLevel = simType === 'character' && simOptions.simLevel
-    ? simOptions.simLevel
-    : (matchedAvatar.level || 1)
   const targetCharMeta = findCharMetaByName(targetCharName)
   const targetElem = targetCharMeta?.elem || getCharElement(targetCharName) || 'hydro'
+  // 天赋/命座/等级数据来源: 换件、换武器沿用基础角色;
+  // 换角色时若目标角色在当前玩家数据中, 优先使用其真实数据
+  const targetAvatar = simType === 'character'
+    ? (_findAvatarByName(baseAvatars, targetCharName) || matchedAvatar)
+    : matchedAvatar
+  const targetCharLevel = simType === 'character'
+    ? (simOptions.simLevel || targetAvatar.level || matchedAvatar.level || 1)
+    : (matchedAvatar.level || 1)
 
   // 4. 武器处理
   let weaponInfo = null
@@ -2446,7 +2449,7 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
 
   // 5. 角色基础属性（模拟角色）
   const charDetailAttr = loadCharDetailAttr(targetCharName)
-  const charCons = matchedAvatar.cons || 0 // 命座仍用 baseChar
+  const charCons = targetAvatar.cons || 0
 
   // 6. 运行属性计算管道
   const pipelineResult = await _runAttrPipeline({
@@ -2463,13 +2466,17 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
 
   if (pipelineResult.error) return pipelineResult
 
+  // 面板显示所需的角色信息 — _runAttrPipeline 只负责数值，需在此补齐
+  pipelineResult.charCons = charCons
+  pipelineResult.talents = targetAvatar.talent || {}
+  pipelineResult.talentCons = targetCharMeta?.talentCons || {}
+  pipelineResult.charId = targetCharMeta?.id || 0
+
   // 附加换件标注
   if (swapFromLabel) {
     pipelineResult.swapFrom = swapFromLabel
   }
 
-  // 构建 simInfo
-  pipelineResult.simInfo = _buildSimInfo(simOptions, swapFromLabel)
   pipelineResult.charName = targetCharName
   pipelineResult.charLevel = targetCharLevel
   pipelineResult.elem = targetElem
@@ -2556,9 +2563,21 @@ export class artifactInitPanel extends plugin {
     const charSplash = getCharImage(charName, 'splash') || getCharImage(charName, 'gacha') || ''
     const charSide = getCharImage(charName, 'side') || getCharImage(charName, 'face') || ''
 
-    // 天赋数据（模拟模式下无详细天赋数据）
+    // 天赋数据: 与基座一致 — 原始等级来自 avatar, 命座 C3/C5 +3, 特殊角色 +1
     const talentMap = { a: '普攻', e: '战技', q: '爆发' }
-    const talents = {}
+    const sourceTalents = result.talents || {}
+    const talentData = {}
+    const talentCons = result.talentCons || charMeta?.talentCons || {}
+    const charCons = result.charCons || 0
+    for (const [key, tName] of Object.entries(talentMap)) {
+      const original = sourceTalents[key] || 0
+      let level = original
+      const consUp = talentCons[key]
+      if (consUp && charCons >= consUp) level += 3
+      if (key === 'a' && result.charId === 10000033) level += 1
+      if (key === 'e' && result.charId === 10000114) level += 1
+      talentData[key] = { level, original }
+    }
     const talentIds = {}
     let talentIcons = {}
     if (charMeta?.talentId) {
@@ -2567,7 +2586,6 @@ export class artifactInitPanel extends plugin {
       }
       talentIcons = getTalentIcons(charName, talentIds, charMeta?.weapon)
     }
-    const talentCons = charMeta?.talentCons || {}
 
     // imgs
     const imgs = {}
@@ -2650,20 +2668,17 @@ export class artifactInitPanel extends plugin {
       }
     })
 
-    // 角色名与模拟标注分开传入: 标注使用小字号单独成行，
-    // 避免长文本撑进 50px 的大标题导致换行、顶开下方武器/圣遗物区
     const renderData = {
       uid: result.uid,
       name: charName,
-      simInfo: result.simInfo || undefined,
       level: result.charLevel,
-      cons: result.charCons,
+      cons: charCons,
       elem: result.elem,
       costumeSplash: charSplash,
       imgs,
-      talent: {},
+      talent: talentData,
       talentMap,
-      talents,
+      talents: sourceTalents,
       talentIcons,
       attr,
       charWeight,

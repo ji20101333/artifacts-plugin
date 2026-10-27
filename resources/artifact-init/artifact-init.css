@@ -364,13 +364,6 @@ body { width: 600px; }
 }
 
 /* ====== 模拟指令标签 ====== */
-.char-sim-info {
-  margin: -14px 0 8px 0;
-  font-size: 12px; line-height: 1.4; color: #f0e68c;
-  text-align: right; font-style: italic;
-  word-break: break-all;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
-}
 .arti-swap-from {
   color: #aaa; font-size: 10px; margin-left: 6px;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
