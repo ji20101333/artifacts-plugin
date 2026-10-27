@@ -1863,19 +1863,6 @@ function _pieceNameToPos (pieceName) {
   return map[pieceName] || null
 }
 
-// 按名称查找玩家 avatars 中的角色 (精确优先, 其次模糊)
-function _findAvatarByName (avatars, name) {
-  if (!avatars || !name) return null
-  let fuzzy = null
-  for (const avatar of Object.values(avatars)) {
-    const avatarName = avatar?.name || ''
-    if (!avatarName) continue
-    if (avatarName === name) return avatar
-    if (!fuzzy && (avatarName.includes(name) || name.includes(avatarName))) fuzzy = avatar
-  }
-  return fuzzy
-}
-
 // 判断名称是角色还是武器（用于模拟指令中区分换角色/换武器）
 function _resolveSimNameType (name) {
   // 先查角色别名
@@ -2354,7 +2341,6 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
 
   // 2. 换件：读取换件来源 UID 的数据
   let artisData = { ...(matchedAvatar.artis || {}) }
-  let swapFromLabel = ''
   if (simOptions.uid && simOptions.sourceCharName && simOptions.piece) {
     const otherPath = path.resolve(_cwd, 'data/PlayerData/gs', `${simOptions.uid}.json`)
     if (fs.existsSync(otherPath)) {
@@ -2375,7 +2361,6 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
           const targetPos = _pieceNameToPos(simOptions.piece)
           if (targetPos && sourceAvatar.artis[targetPos]) {
             artisData[targetPos] = sourceAvatar.artis[targetPos]
-            swapFromLabel = `${simOptions.uid}${simOptions.sourceCharName}${simOptions.piece}`
           }
         }
       } catch (_) {}
@@ -2390,24 +2375,28 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
   const targetCharName = simType === 'character' ? simName : charName
   const targetCharMeta = findCharMetaByName(targetCharName)
   const targetElem = targetCharMeta?.elem || getCharElement(targetCharName) || 'hydro'
-  // 天赋/命座/等级数据来源: 换件、换武器沿用基础角色;
-  // 换角色时若目标角色在当前玩家数据中, 优先使用其真实数据
-  const targetAvatar = simType === 'character'
-    ? (_findAvatarByName(baseAvatars, targetCharName) || matchedAvatar)
-    : matchedAvatar
-  const targetCharLevel = simType === 'character'
-    ? (simOptions.simLevel || targetAvatar.level || matchedAvatar.level || 1)
+  // 换角色时仅替换角色本身: 未显式指定等级时沿用原角色等级,
+  // 命座/天赋也沿用原角色, 保证模拟面板与原面板处于同一培养状态
+  const targetCharLevel = simType === 'character' && simOptions.simLevel
+    ? simOptions.simLevel
     : (matchedAvatar.level || 1)
 
   // 4. 武器处理
+  const baseWeapon = matchedAvatar.weapon || {}
+  const simWeaponLevel = simType === 'weapon' ? simOptions.simLevel : null
   let weaponInfo = null
   const effectiveWeaponMeta = simType === 'weapon'
     ? findWeaponData(simName)
-    : findWeaponData(matchedAvatar.weapon?.name || '')
+    : findWeaponData(baseWeapon.name || '')
 
   if (effectiveWeaponMeta) {
-    const wLevel = simType === 'weapon' ? (simOptions.simLevel || 1) : (matchedAvatar.weapon?.level || 1)
-    const wPromote = simType === 'weapon' ? 0 : (matchedAvatar.weapon?.promote || 0)
+    // 换武器且未指定等级时沿用原武器等级/突破状态; 精炼沿用原武器精炼
+    const wLevel = simType === 'weapon'
+      ? (simWeaponLevel || baseWeapon.level || 1)
+      : (baseWeapon.level || 1)
+    const wPromote = simWeaponLevel
+      ? 0
+      : (baseWeapon.promote || 0)
     const ascBoundaries = [20, 40, 50, 60, 70, 80]
     const levelKey = (wPromote > 0 && ascBoundaries.includes(wLevel)) ? `${wLevel}+` : String(wLevel)
 
@@ -2417,7 +2406,7 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
     const bonusVal = (wAttr.bonusData && wAttr.bonusData[levelKey]) ? wAttr.bonusData[levelKey] : 0
     const affixText = effectiveWeaponMeta.affixData?.text || ''
     const affixDatas = effectiveWeaponMeta.affixData?.datas || {}
-    const affix = simType === 'weapon' ? 1 : (matchedAvatar.weapon?.affix || 1)
+    const affix = baseWeapon.affix || 1
 
     let desc = affixText
     const reg = /\$\[(\d)\]/g
@@ -2449,7 +2438,8 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
 
   // 5. 角色基础属性（模拟角色）
   const charDetailAttr = loadCharDetailAttr(targetCharName)
-  const charCons = targetAvatar.cons || 0
+  // 命座沿用原角色 (换角色时未显式指定的培养状态保持一致)
+  const charCons = matchedAvatar.cons || 0
 
   // 6. 运行属性计算管道
   const pipelineResult = await _runAttrPipeline({
@@ -2467,15 +2457,12 @@ async function processSimulatedArtifacts (baseUid, charName, simOptions = {}) {
   if (pipelineResult.error) return pipelineResult
 
   // 面板显示所需的角色信息 — _runAttrPipeline 只负责数值，需在此补齐
+  // 天赋/命座/等级沿用原角色 (与原面板同一培养状态)
+  const baseCharMeta = findCharMetaByName(charName)
   pipelineResult.charCons = charCons
-  pipelineResult.talents = targetAvatar.talent || {}
-  pipelineResult.talentCons = targetCharMeta?.talentCons || {}
-  pipelineResult.charId = targetCharMeta?.id || 0
-
-  // 附加换件标注
-  if (swapFromLabel) {
-    pipelineResult.swapFrom = swapFromLabel
-  }
+  pipelineResult.talents = matchedAvatar.talent || {}
+  pipelineResult.talentCons = baseCharMeta?.talentCons || {}
+  pipelineResult.charId = baseCharMeta?.id || 0
 
   pipelineResult.charName = targetCharName
   pipelineResult.charLevel = targetCharLevel
@@ -2553,11 +2540,12 @@ export class artifactInitPanel extends plugin {
       return true
     }
 
-    return this._renderSimulatedResult(result)
+    // 参考 miao-plugin: 模拟面板展示完整替换指令
+    return this._renderSimulatedResult(result, this.e.msg)
   }
 
   // 渲染模拟结果（复用基座 handler 的渲染逻辑）
-  async _renderSimulatedResult (result) {
+  async _renderSimulatedResult (result, changeProfile = '') {
     const charName = result.charName
     const charMeta = findCharMetaByName(charName)
     const charSplash = getCharImage(charName, 'splash') || getCharImage(charName, 'gacha') || ''
@@ -2645,7 +2633,6 @@ export class artifactInitPanel extends plugin {
       if (a.empty) return { empty: true, posName: a.posName }
       return {
         ...a,
-        swapFrom: a.swapFrom || undefined,
         subStats: a.subHistory.map(sh => {
           const totalText = formatSubValue(sh.key, sh.totalValue)
           const initialText = formatSubValue(sh.key, sh.initialValue)
@@ -2680,6 +2667,7 @@ export class artifactInitPanel extends plugin {
       talentMap,
       talents: sourceTalents,
       talentIcons,
+      changeProfile: changeProfile || undefined,
       attr,
       charWeight,
       charStats: result.charStats,

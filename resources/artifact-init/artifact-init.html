@@ -70,6 +70,13 @@
     </div>
   </div>
 
+  <!-- 模拟面板提示 (参考 miao-plugin profile-detail: 展示当前替换命令) -->
+  {{if changeProfile}}
+  <div class="change-profile">
+    <strong>该面板为非实际数据。当前替换命令：</strong>{{changeProfile}}
+  </div>
+  {{/if}}
+
   <!-- ====== 武器 + 有效词条汇总 ====== -->
   <div class="profile-detail">
     <div class="detail-split">
@@ -153,7 +160,7 @@
 
         <!-- 圣遗物名称 + 主词条 -->
         <div class="arti-row-main">
-          <div class="arti-pos-label"><span>{{arti.posName}}</span>{{if arti.swapFrom}}<span class="arti-swap-from">换件自{{arti.swapFrom}}</span>{{/if}}<span class="arti-score mark-{{arti.artiRating}}">{{arti.artiScore}}</span></div>
+          <div class="arti-pos-label"><span>{{arti.posName}}</span><span class="arti-score mark-{{arti.artiRating}}">{{arti.artiScore}}</span></div>
           <div class="arti-name"><span>{{arti.name}}</span><span class="arti-rating mark-{{arti.artiRating}}">{{arti.artiRating}}</span></div>
           <div class="arti-main-stat">{{arti.mainKeyName}} <span class="main-val">+{{arti.mainValText}}</span></div>
           <div class="arti-counts-inline">{{if arti.initialCount > 0}}{{arti.initialCount}}初始 · {{/if}}{{arti.effectiveCount}}有效 · {{arti.upgradeCount}}词条</div>
