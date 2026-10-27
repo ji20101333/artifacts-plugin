@@ -11,8 +11,11 @@ body { width: 600px; }
 .profile-cont { padding: 0 10px; margin-right: 5px; }
 
 /* ====== 角色头部 (参考 miao-plugin .basic) ====== */
+/* 头部高度不再只由立绘的 500px 决定: 模拟标注等多行内容会把 .detail 撑高，
+   这里让 .basic 随内容增长，避免溢出后压住下方的武器/圣遗物区 */
 .basic {
   position: relative; margin: 0 -15px 15px -10px;
+  padding-top: 20px; min-height: 500px;
 }
 .basic:after {
   content: ""; display: block; position: absolute;
@@ -20,12 +23,14 @@ body { width: 600px; }
   box-shadow: 0 0 2px 0 #fff; border-radius: 5px; z-index: 1;
 }
 .main-pic {
+  position: absolute; top: 0; left: 0;
   width: 1400px; height: 500px; background-size: contain;
   background-repeat: no-repeat; background-position: center;
-  margin-left: -545px; position: relative; z-index: 2;
+  margin-left: -545px; z-index: 2;
 }
 .detail {
-  position: absolute; right: 20px; top: 20px; color: #fff; z-index: 3;
+  position: relative; margin: 0 20px 0 auto; width: 300px;
+  color: #fff; z-index: 3;
 }
 .char-name {
   font-size: 50px;
@@ -90,12 +95,13 @@ body { width: 600px; }
 }
 .char-talents .talent-item { flex: 1; }
 
-/* 命座图标 (参考 miao-plugin profile-detail.css) */
+/* 命座图标 (参考 miao-plugin profile-detail.css)
+   锚定立绘底部而非 .basic 底部: .basic 会被多行模拟标注撑高 */
 .char-cons {
   display: flex;
   width: 250px;
   position: absolute;
-  bottom: 5px;
+  top: 445px;
   left: 20px;
   z-index: 3;
 }
@@ -358,8 +364,11 @@ body { width: 600px; }
 }
 
 /* ====== 模拟指令标签 ====== */
-.sim-info {
-  color: #f0e68c; font-size: 12px; margin-left: 8px; font-style: italic;
+.char-sim-info {
+  margin: -14px 0 8px 0;
+  font-size: 12px; line-height: 1.4; color: #f0e68c;
+  text-align: right; font-style: italic;
+  word-break: break-all;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
 }
 .arti-swap-from {

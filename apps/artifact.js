@@ -2650,12 +2650,12 @@ export class artifactInitPanel extends plugin {
       }
     })
 
-    // 无模拟标注时只显示角色名 (原实现误把 charName 拼了两次)
-    const displayName = charName + (result.simInfo ? ` (模拟: ${result.simInfo})` : '')
-
+    // 角色名与模拟标注分开传入: 标注使用小字号单独成行，
+    // 避免长文本撑进 50px 的大标题导致换行、顶开下方武器/圣遗物区
     const renderData = {
       uid: result.uid,
-      name: displayName,
+      name: charName,
+      simInfo: result.simInfo || undefined,
       level: result.charLevel,
       cons: result.charCons,
       elem: result.elem,

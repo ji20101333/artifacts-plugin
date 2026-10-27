@@ -13,8 +13,11 @@
   <div class="basic">
     <div class="main-pic" style="background-image:url({{_miao_path}}{{costumeSplash||charImgs?.splash}})"></div>
     <div class="detail">
-      <div class="char-name">{{name}}{{if simInfo}}<span class="sim-info">（{{simInfo}}）</span>{{/if}}</div>
+      <div class="char-name">{{name}}</div>
       <div class="char-lv">UID {{uid}} - Lv.{{level}} <span class="cons cons-{{cons}}">{{cons}}命</span></div>
+      {{if simInfo}}
+      <div class="char-sim-info">模拟：{{simInfo}}</div>
+      {{/if}}
       <div>
         <!-- 天赋 (参考 miao-plugin) -->
         {{set talentMap = talentMap || {a: '普攻', e: '战技', q: '爆发'} }}
